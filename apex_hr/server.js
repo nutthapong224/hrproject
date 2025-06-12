@@ -12,7 +12,8 @@ const otpRoutes = require('./routes/otpRoutes');
 
 const employeeRoutes = require('./routes/employeeRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
-
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger.js'); // นำเข้าจากข้อ 2
 
 // Load environment variables
 dotenv.config();
@@ -44,7 +45,7 @@ app.use(bodyParser.json());
 
 // Serve static files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/admin", adminRoutes);
 app.use("/api/news", newsRoutes); //หน้าข่าว
 app.use("/api/useraccount", useraccountRounts); // เช็คuser

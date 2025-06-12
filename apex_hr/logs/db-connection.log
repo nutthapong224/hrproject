@@ -80,3 +80,9 @@
 {"level":"info","message":"Database connected successfully","timestamp":"2025-06-12T07:58:50.384Z"}
 {"level":"info","message":"Database connected successfully","timestamp":"2025-06-12T08:01:04.148Z"}
 {"level":"info","message":"Database connected successfully","timestamp":"2025-06-12T08:06:47.474Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-12T08:09:44.928Z"}
+{"level":"error","message":"Database connection failed: connect ETIMEDOUT","timestamp":"2025-06-12T08:43:04.751Z"}
+{"level":"info","message":"Retrying connection... (5 retries left)","timestamp":"2025-06-12T08:43:04.752Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-12T08:43:10.081Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-12T08:45:48.326Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-12T08:56:07.524Z"}
