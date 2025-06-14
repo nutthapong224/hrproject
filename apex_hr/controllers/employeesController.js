@@ -266,7 +266,7 @@ exports.addEmployee = async (req, res) => {
             [child_name, child_birthdate, insertedEmployeeId]
           );
           insertedChildrenIds.push({
-            child_id: insertChild.insertId,
+            children_id: insertChild.insertId,
             child_name: child_name,
             child_birthdate: child_birthdate
           });
@@ -308,7 +308,7 @@ exports.addEmployee = async (req, res) => {
             [level, field, institution, year, insertedEmployeeId]
           );
           insertedEducationIds.push({
-            education_id: insertEducation.insertId,
+            education_history_id : insertEducation.insertId,
             level: level,
             field: field,
             institution: institution,
@@ -381,7 +381,7 @@ exports.addEmployee = async (req, res) => {
       contact_person2_id: contact_person2_id,
       children_ids: insertedChildrenIds,
       siblings_ids: insertedSiblingsIds,
-      education_ids: insertedEducationIds,
+      education_history_ids: insertedEducationIds,
       work_experience_ids: insertedWorkExperienceIds,
       main_attachment_id: finalAttachmentId,
       all_attachment_ids: allAttachmentIds,
@@ -632,7 +632,7 @@ exports.updateEmployee = async (req, res) => {
             [child_name, child_birthdate, employee_id]
           );
           insertedChildrenIds.push({
-            child_id: insertChild.insertId,
+            children_id: insertChild.insertId,
             child_name: child_name,
             child_birthdate: child_birthdate
           });
@@ -678,7 +678,7 @@ exports.updateEmployee = async (req, res) => {
             [level, field, institution, year, employee_id]
           );
           insertedEducationIds.push({
-            education_id: insertEducation.insertId,
+            education_history_id : insertEducation.insertId,
             level: level,
             field: field,
             institution: institution,
@@ -746,7 +746,7 @@ exports.updateEmployee = async (req, res) => {
       contact_person2_id: existingEmployee.contact_person2_id,
       children_ids: insertedChildrenIds,
       siblings_ids: insertedSiblingsIds,
-      education_ids: insertedEducationIds,
+      education_history_ids: insertedEducationIds,
       work_experience_ids: insertedWorkExperienceIds,
       uploaded_files: uploadedFiles
     });
@@ -957,10 +957,12 @@ exports.getEmployeeById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // ดึงข้อมูลพนักงานหลักพร้อมกับ address, contact person, และ employee_type
     const [rows] = await conn.query(`
       SELECT 
         e.*,
-
+        et.name AS employee_type_name,
+        
         ah.address AS house_address,
         ah.sub_district AS house_sub_district,
         ah.district AS house_district,
@@ -984,6 +986,7 @@ exports.getEmployeeById = async (req, res) => {
         cp2.address AS cp2_address
 
       FROM employee e
+      LEFT JOIN employee_type et ON e.employee_type_id = et.employee_type_id
       LEFT JOIN address_house ah ON e.address_house_id = ah.address_house_id
       LEFT JOIN address_card ac ON e.address_card_id = ac.address_card_id
       LEFT JOIN contact_person1 cp1 ON e.contact_person1_id = cp1.contact_person1_id
@@ -994,6 +997,46 @@ exports.getEmployeeById = async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ message: "Employee not found" });
     }
+
+    // ดึงข้อมูลลูก (children)
+    const [childrenRows] = await conn.query(`
+      SELECT children_id, child_name, child_birthdate
+      FROM children
+      WHERE employee_id = ?
+      ORDER BY children_id
+    `, [id]);
+
+    // ดึงข้อมูลพี่น้อง (siblings)
+    const [siblingsRows] = await conn.query(`
+      SELECT siblings_id, siblings_name, siblings_birthdate, siblings_mobile, siblings_occupation
+      FROM siblings
+      WHERE employee_id = ?
+      ORDER BY siblings_id
+    `, [id]);
+
+    // ดึงข้อมูลประวัติการศึกษา (education_history)
+    const [educationRows] = await conn.query(`
+      SELECT education_history_id , level, field, institution, year
+      FROM education_history
+      WHERE employee_id = ?
+      ORDER BY year DESC
+    `, [id]);
+
+    // ดึงข้อมูลประสบการณ์การทำงาน (work_experience)
+    const [workExpRows] = await conn.query(`
+      SELECT work_experience_id, company, position, from_date, to_date, salary, detail
+      FROM work_experience
+      WHERE employee_id = ?
+      ORDER BY from_date DESC
+    `, [id]);
+
+    // ดึงข้อมูลไฟล์แนบ (attachments)
+    const [attachmentRows] = await conn.query(`
+      SELECT attachment_id, file_name, file_path, reference_type, create_date, modify_date
+      FROM attachment
+      WHERE reference_id = ? AND reference_type = 'employee'
+      ORDER BY attachment_id
+    `, [id]);
 
     const e = rows[0];
     const data = {
@@ -1024,9 +1067,11 @@ exports.getEmployeeById = async (req, res) => {
       father_name: e.father_name,
       father_birthdate: e.father_birthdate,
       father_occupation: e.father_occupation,
+      father_age: e.father_age,
       mother_name: e.mother_name,
       mother_birthdate: e.mother_birthdate,
       mother_occupation: e.mother_occupation,
+      mother_age: e.mother_age,
       spouse_name: e.spouse_name,
       spouse_birthdate: e.spouse_birthdate,
       spouse_occupation: e.spouse_occupation,
@@ -1040,8 +1085,12 @@ exports.getEmployeeById = async (req, res) => {
       language_writing: e.language_writing,
       criminal_record: e.criminal_record,
       upcountry_areas: e.upcountry_areas,
+      employee_type_id: e.employee_type_id,
+      employee_type_name: e.employee_type_name,
+      attachment_id: e.attachment_id,
 
       address_house: {
+        address_house_id: e.address_house_id,
         address: e.house_address,
         sub_district: e.house_sub_district,
         district: e.house_district,
@@ -1050,6 +1099,7 @@ exports.getEmployeeById = async (req, res) => {
       },
 
       address_card: {
+        address_card_id: e.address_card_id,
         address: e.card_address,
         sub_district: e.card_sub_district,
         district: e.card_district,
@@ -1058,6 +1108,7 @@ exports.getEmployeeById = async (req, res) => {
       },
 
       contact_person1: {
+        contact_person1_id: e.contact_person1_id,
         name: e.cp1_name,
         relationship: e.cp1_relationship,
         mobile: e.cp1_mobile,
@@ -1065,11 +1116,58 @@ exports.getEmployeeById = async (req, res) => {
       },
 
       contact_person2: {
+        contact_person2_id: e.contact_person2_id,
         name: e.cp2_name,
         relationship: e.cp2_relationship,
         mobile: e.cp2_mobile,
         address: e.cp2_address,
       },
+
+      // ข้อมูลลูก
+      children_data: childrenRows.map(child => ({
+        children_id: child.children_id,
+        child_name: child.child_name,
+        child_birthdate: child.child_birthdate
+      })),
+
+      // ข้อมูลพี่น้อง
+      siblings_data: siblingsRows.map(sibling => ({
+        siblings_id: sibling.siblings_id,
+        siblings_name: sibling.siblings_name,
+        siblings_birthdate: sibling.siblings_birthdate,
+        siblings_mobile: sibling.siblings_mobile,
+        siblings_occupation: sibling.siblings_occupation
+      })),
+
+      // ข้อมูลประวัติการศึกษา
+      education_history_data: educationRows.map(education => ({
+        education_history_id : education.education_history_id ,
+        level: education.level,
+        field: education.field,
+        institution: education.institution,
+        year: education.year
+      })),
+
+      // ข้อมูลประสบการณ์การทำงาน
+      work_experience_data: workExpRows.map(workExp => ({
+        work_experience_id: workExp.work_experience_id,
+        company: workExp.company,
+        position: workExp.position,
+        from_date: workExp.from_date,
+        to_date: workExp.to_date,
+        salary: workExp.salary,
+        detail: workExp.detail
+      })),
+
+      // ข้อมูลไฟล์แนบ
+      attachments: attachmentRows.map(attachment => ({
+        attachment_id: attachment.attachment_id,
+        file_name: attachment.file_name,
+        file_path: attachment.file_path,
+        reference_type: attachment.reference_type,
+        create_date: attachment.create_date,
+        modify_date: attachment.modify_date
+      }))
     };
 
     res.status(200).json(data);

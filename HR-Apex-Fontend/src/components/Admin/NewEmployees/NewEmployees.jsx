@@ -421,13 +421,14 @@ const handleSiblingInputChange = (index, field, value) => {
         body: formDataToSend
       });
 
-       setShowSuccessPopup(true)
       if (response.ok) {
         console.log('Employee added successfully');
         // Reset form หรือทำอะไรต่อตามต้องการ
       } else {
         console.error('Failed to add employee');
       }
+      
+       setShowSuccessPopup(true)
     } catch (error) {
       console.error('Error:', error);
     }
@@ -984,13 +985,15 @@ const handleSiblingInputChange = (index, field, value) => {
                             value={edu.level}
                             onChange={e => handleEducationChange(idx, 'level', e.target.value)}
                           >
-                            <option value="">Select Level</option>
-                            <option value="high_school">High School</option>
-                            <option value="vocational">Vocational Certificate</option>
-                            <option value="high_vocational">Higher Vocational Certificate</option>
-                            <option value="bachelor">Bachelor's Degree</option>
-                            <option value="master">Master's Degree</option>
-                            <option value="doctorate">Doctorate's Degree</option>
+                
+                          <option value="">Select Education Level</option>
+                          <option value="มัธยมศึกษาตอนปลาย">มัธยมศึกษาตอนปลาย</option>
+                          <option value="ปวช.">ปวช.</option>
+                          <option value="ปวท./ปวส.">ปวท./ปวส.</option>
+                          <option value="ปริญญาตรี">ปริญญาตรี</option>
+                          <option value="ปริญญาโท">ปริญญาโท</option>
+                          <option value="ปริญญาเอก">ปริญญาเอก</option>
+                      
                           </select>
                         </td>
                         <td>
