@@ -119,7 +119,7 @@ exports.addEmployee = async (req, res) => {
     // Work experience data - array of objects with work experience info
     work_experience_data = [],
     father_age,
-    mother_age
+    mother_age,age
   } = req.body;
 
   const connection = await pool.getConnection();
@@ -211,9 +211,9 @@ exports.addEmployee = async (req, res) => {
         spouse_name, spouse_birthdate, spouse_occupation,
         total_siblings, order_of_siblings, total_children, total_boys, total_girls,
         language_speaking, language_reading, language_writing,
-        criminal_record, upcountry_areas, attachment_id, address_card_id, address_house_id, employee_type_id,father_age,mother_age
+        criminal_record, upcountry_areas, attachment_id, address_card_id, address_house_id, employee_type_id,father_age,mother_age,age
       ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?
       )`,
       [
         first_name, last_name, nickname,
@@ -228,7 +228,7 @@ exports.addEmployee = async (req, res) => {
         spouse_name, spouse_birthdate, spouse_occupation,
         total_siblings, order_of_siblings, total_children, total_boys, total_girls,
         language_speaking, language_reading, language_writing,
-        criminal_record, upcountry_areas, finalAttachmentId, address_card_id, address_house_id, employee_type_id,father_age,mother_age
+        criminal_record, upcountry_areas, finalAttachmentId, address_card_id, address_house_id, employee_type_id,father_age,mother_age,age
       ]
     );
 
@@ -447,6 +447,7 @@ exports.updateEmployee = async (req, res) => {
     criminal_record,
     upcountry_areas,
     modify_name = null,
+  
     // Address card fields
     address_house_address,
     address_house_sub_district,
@@ -479,7 +480,8 @@ exports.updateEmployee = async (req, res) => {
     // Work experience data - array of objects with work experience info
     work_experience_data = [],
     father_age,
-    mother_age
+    mother_age,
+    age
   } = req.body;
 
   const connection = await pool.getConnection();
@@ -583,7 +585,7 @@ exports.updateEmployee = async (req, res) => {
         spouse_name = ?, spouse_birthdate = ?, spouse_occupation = ?,
         total_siblings = ?, order_of_siblings = ?, total_children = ?, total_boys = ?, total_girls = ?,
         language_speaking = ?, language_reading = ?, language_writing = ?,
-        criminal_record = ?, upcountry_areas = ?, employee_type_id = ?, father_age = ?, mother_age = ?
+        criminal_record = ?, upcountry_areas = ?, employee_type_id = ?, father_age = ?, mother_age = ?, age = ?
        WHERE employee_id = ?`,
       [
         first_name, last_name, nickname, profileImagePath, mobile_no, birth_date, gender,
@@ -597,6 +599,7 @@ exports.updateEmployee = async (req, res) => {
         total_siblings, order_of_siblings, total_children, total_boys, total_girls,
         language_speaking, language_reading, language_writing,
         criminal_record, upcountry_areas, employee_type_id, father_age, mother_age,
+        age,
         employee_id
       ]
     );
@@ -963,17 +966,17 @@ exports.getEmployeeById = async (req, res) => {
         e.*,
         et.name AS employee_type_name,
         
-        ah.address AS house_address,
-        ah.sub_district AS house_sub_district,
-        ah.district AS house_district,
-        ah.province AS house_province,
-        ah.postal_code AS house_postal_code,
+        ah.address AS address_house_address,
+        ah.sub_district AS address_house_sub_district,
+        ah.district AS address_house_district,
+        ah.province AS address_house_province,
+        ah.postal_code AS address_house_postal_code,
 
-        ac.address AS card_address,
-        ac.sub_district AS card_sub_district,
-        ac.district AS card_district,
-        ac.province AS card_province,
-        ac.postal_code AS card_postal_code,
+        ac.address AS address_card_address,
+        ac.sub_district AS address_card_sub_district,
+        ac.district AS address_card_district,
+        ac.province AS address_card_province,
+        ac.postal_code AS address_card_postal_code,
 
         cp1.name AS cp1_name,
         cp1.relationship AS cp1_relationship,
@@ -1068,6 +1071,7 @@ exports.getEmployeeById = async (req, res) => {
       father_birthdate: e.father_birthdate,
       father_occupation: e.father_occupation,
       father_age: e.father_age,
+   
       mother_name: e.mother_name,
       mother_birthdate: e.mother_birthdate,
       mother_occupation: e.mother_occupation,
@@ -1089,23 +1093,22 @@ exports.getEmployeeById = async (req, res) => {
       employee_type_name: e.employee_type_name,
       attachment_id: e.attachment_id,
 
-      address_house: {
-        address_house_id: e.address_house_id,
-        address: e.house_address,
-        sub_district: e.house_sub_district,
-        district: e.house_district,
-        province: e.house_province,
-        postal_code: e.house_postal_code,
-      },
+      // Address House fields
+      address_house_id: e.address_house_id,
+      address_house_address: e.address_house_address,
+      address_house_sub_district: e.address_house_sub_district,
+      address_house_district: e.address_house_district,
+      address_house_province: e.address_house_province,
+      address_house_postal_code: e.address_house_postal_code,
 
-      address_card: {
-        address_card_id: e.address_card_id,
-        address: e.card_address,
-        sub_district: e.card_sub_district,
-        district: e.card_district,
-        province: e.card_province,
-        postal_code: e.card_postal_code,
-      },
+      // Address Card fields
+      address_card_id: e.address_card_id,
+      address_card_address: e.address_card_address,
+      address_card_sub_district: e.address_card_sub_district,
+      address_card_district: e.address_card_district,
+      address_card_province: e.address_card_province,
+      address_card_postal_code: e.address_card_postal_code,
+      age:e.age,
 
       contact_person1: {
         contact_person1_id: e.contact_person1_id,

@@ -179,6 +179,7 @@ const formatDateForDisplay = (dateString) => {
   MobileNumber: emp.mobile_no,
   Position: emp.position,
   Department: "N/A",
+  age:emp.age,
   Type: emp.employee_type_name || "N/A",
   Status: emp.status_employee || "Inactive",
   ImageUrl: emp.pic_path
@@ -195,16 +196,16 @@ const formatDateForDisplay = (dateString) => {
   Religion: emp.religion || "",
 
   // ✅ ดึงจาก address_house
-  Address: emp.address_house?.address || "",
-  City: emp.address_house?.district || "",
-  State: emp.address_house?.province || "",
-  ZIPCode: emp.address_house?.postal_code || "",
+  Address: emp.address_house_address || "",
+  City: emp.address_house_district|| "",
+  State: emp.address_house_province || "",
+  ZIPCode: emp.address_house_postal_code || "",
 
   // ✅ ข้อมูลที่อยู่ตามบัตรประชาชน
-  CardAddress: emp.address_card?.address || "",
-  CardCity: emp.address_card?.district || "",
-  CardState: emp.address_card?.province || "",
-  CardZIPCode: emp.address_card?.postal_code || "",
+  CardAddress: emp.address_card_address || "",
+  CardCity: emp.address_card_district|| "",
+  CardState: emp.adaddress_card_sub_district || "",
+  CardZIPCode: emp.address_card_postal_code|| "",
 
   BankName: emp.bank_name,
   AccountNumber: emp.account_number,
@@ -402,24 +403,24 @@ const updatePayload = {
   nationality: editData.Nationality,
   marital_status: editData.MaritalStatus,
   religion: editData.Religion,
+  age:editData.age,
   
-  // ✅ ข้อมูลที่อยู่ที่บ้าน
-  address_house: {
+ 
     address_house_id: editData.address_house_id, // เพิ่ม ID สำหรับการอัปเดต
-    address: editData.Address,
-    district: editData.City,
-    province: editData.State,
-    postal_code: editData.ZIPCode
-  },
+    address_house_address: editData.Address,
+    address_house_district: editData.City,
+    address_house_province: editData.State,
+    address_house_postal_code: editData.ZIPCode,
+  
   
   // ✅ ข้อมูลที่อยู่ตามบัตรประชาชน
-  address_card: {
+
     address_card_id: editData.address_card_id, // เพิ่ม ID สำหรับการอัปเดต
-    address: editData.CardAddress,
-    district: editData.CardCity,
-    province: editData.CardState,
-    postal_code: editData.CardZIPCode
-  },
+   address_card_address: editData.CardAddress,
+    address_card_district: editData.CardCity,
+    address_card_sub_district: editData.CardState,
+    address_card_postal_code: editData.CardZIPCode,
+
   
   // ✅ ข้อมูลธนาคาร
   bank_name: editData.BankName,
@@ -515,6 +516,7 @@ const updatePayload = {
   
   // ✅ ความสามารถในการย้ายภูมิลำเนา
   upcountry_areas: editData.canRelocate,
+
   
   // ✅ ไฟล์แนบ (ถ้ามีการอัปเดต)
   attachments: editData.attachments || [],
@@ -707,13 +709,13 @@ const calculateBirthDate = (age) => {
             {isEditing ? (
               <input
                 type="number"
-                name="Age"
-                value={editData.Age || ''}
+                name="age"
+                value={editData.age || ''}
                 onChange={handleInputChange}
                 className="edit-input"
               />
             ) : (
-              <span className="info-value">{employeeData?.Age || '-'}</span>
+              <span className="info-value">{employeeData.age || '-'}</span>
             )}
           </div>
         </div>
