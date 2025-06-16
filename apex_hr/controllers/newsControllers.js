@@ -770,22 +770,19 @@ exports.unpinNewsById = async (req, res) => {
 
 
 exports.deleteMultipleNewsAttachments = async (req, res) => {
-  const newsId = req.params.news_id;
-  const { attachment_ids } = req.body; // array ของ attachment_id
-
-  if (!attachment_ids || !Array.isArray(attachment_ids) || attachment_ids.length === 0) {
-    return res.status(400).json({ error: 'กรุณาระบุ attachment_ids ที่ต้องการลบ' });
-  }
+  const newsId = req.params.news_id;  // เปลี่ยนให้ตรงกับ route
+  const { attachment_ids } = req.body;
 
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
-
+    console.log(newsId)
     // ตรวจสอบว่าข่าวมีอยู่หรือไม่
     const [existingNews] = await connection.query(
       'SELECT * FROM news WHERE id = ?',
-      [newsId]
+      [newsId] 
+
     );
 
     if (existingNews.length === 0) {
@@ -793,61 +790,86 @@ exports.deleteMultipleNewsAttachments = async (req, res) => {
       return res.status(404).json({ error: 'ไม่พบข่าวที่ระบุ' });
     }
 
-    // ตรวจสอบว่า attachments ทั้งหมดมีอยู่และตรงกับ news_id หรือไม่
-    const placeholders = attachment_ids.map(() => '?').join(',');
-    const [existingAttachments] = await connection.query(
-      `SELECT * FROM attachment 
-       WHERE attachment_id IN (${placeholders}) 
-       AND reference_id = ? AND reference_type = ?`,
-      [...attachment_ids, newsId, 'news']
-    );
+    let existingAttachments = [];
+    let deleteQuery = '';
+    let deleteParams = [];
 
-    if (existingAttachments.length !== attachment_ids.length) {
-      await connection.rollback();
-      return res.status(404).json({ 
-        error: 'ไม่พบไฟล์แนบบางไฟล์หรือไฟล์แนบไม่ตรงกับข่าวที่ระบุ' 
-      });
+    if (attachment_ids && Array.isArray(attachment_ids) && attachment_ids.length > 0) {
+      const placeholders = attachment_ids.map(() => '?').join(',');
+      const [specificAttachments] = await connection.query(
+        `SELECT * FROM attachment 
+         WHERE attachment_id IN (${placeholders}) 
+         AND reference_id = ? AND description = ?`,
+        [...attachment_ids, newsId, 'news']
+      );
+
+      if (specificAttachments.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          error: 'ไม่พบไฟล์แนบที่ระบุหรือไฟล์แนบไม่ตรงกับข่าวที่ระบุ'
+        });
+      }
+
+      existingAttachments = specificAttachments;
+      deleteQuery = `DELETE FROM attachment 
+                     WHERE attachment_id IN (${placeholders}) 
+                     AND reference_id = ? AND description = ?`;
+      deleteParams = [...attachment_ids, newsId, 'news'];
+
+    } else {
+      const [allAttachments] = await connection.query(
+        `SELECT * FROM attachment 
+         WHERE reference_id = ? AND description = ?`,
+        [newsId, 'news']
+      );
+
+      if (allAttachments.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ 
+          error: 'ไม่พบไฟล์แนบในข่าวที่ระบุ' 
+        });
+      }
+
+      existingAttachments = allAttachments;
+      deleteQuery = `DELETE FROM attachment 
+                     WHERE reference_id = ? AND description = ?`;
+      deleteParams = [newsId, 'news'];
     }
 
-    // เก็บข้อมูลไฟล์ก่อนลบ
     const deletedFiles = existingAttachments.map(att => ({
       attachment_id: att.attachment_id,
       file_name: att.file_name,
       file_path: att.file_path
     }));
 
-    // ลบ attachments จากฐานข้อมูล
-    const [deleteResult] = await connection.query(
-      `DELETE FROM attachment 
-       WHERE attachment_id IN (${placeholders}) 
-       AND reference_id = ? AND reference_type = ?`,
-      [...attachment_ids, newsId, 'news']
-    );
+    const [deleteResult] = await connection.query(deleteQuery, deleteParams);
 
     if (deleteResult.affectedRows === 0) {
       await connection.rollback();
       return res.status(400).json({ error: 'ไม่สามารถลบไฟล์แนบได้' });
     }
 
-    // อัปเดต modify_date ของข่าว
     await connection.query(
       'UPDATE news SET modify_date = NOW() WHERE id = ?',
       [newsId]
     );
 
-    // ดึงข้อมูลไฟล์แนบที่เหลืออยู่
     const [remainingAttachments] = await connection.query(
-      `SELECT attachment_id, file_name, file_path, create_name, create_date
+      `SELECT attachment_id, file_name, file_path, create_name, create_date 
        FROM attachment 
-       WHERE reference_id = ? AND reference_type = ?
+       WHERE reference_id = ? AND description = ? 
        ORDER BY create_date DESC`,
       [newsId, 'news']
     );
 
     await connection.commit();
 
+    const message = attachment_ids && attachment_ids.length > 0 
+      ? `ลบไฟล์แนบที่ระบุสำเร็จ ${deleteResult.affectedRows} ไฟล์`
+      : `ลบไฟล์แนบทั้งหมดสำเร็จ ${deleteResult.affectedRows} ไฟล์`;
+
     return res.status(200).json({
-      message: `ลบไฟล์แนบสำเร็จ ${deleteResult.affectedRows} ไฟล์`,
+      message: message,
       deleted_files: deletedFiles,
       deleted_count: deleteResult.affectedRows,
       remaining_attachments: remainingAttachments,
@@ -857,9 +879,9 @@ exports.deleteMultipleNewsAttachments = async (req, res) => {
   } catch (err) {
     await connection.rollback();
     console.error('Database error:', err);
-    res.status(500).json({ 
-      error: 'เกิดข้อผิดพลาดในการลบไฟล์แนบ', 
-      detail: err.message 
+    res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการลบไฟล์แนบ',
+      detail: err.message
     });
   } finally {
     connection.release();

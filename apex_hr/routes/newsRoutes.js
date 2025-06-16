@@ -212,5 +212,5 @@ router.put('/updatenews/:id', upload.fields([
  *         description: ลบสำเร็จ
  */
 router.delete('/deletenews/:id', deleteNewsById);
-router.delete('/deleteattachment/:id', deleteMultipleNewsAttachments);
+router.delete('/deleteattachment/:news_id', deleteMultipleNewsAttachments);
 module.exports = router;

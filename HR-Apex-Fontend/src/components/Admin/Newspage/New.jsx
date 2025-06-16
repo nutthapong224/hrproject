@@ -152,52 +152,70 @@ const handleFileChange = (e) => {
 };
 
 // ฟังก์ชันสำหรับลบไฟล์ออกจาก preview
+// เพิ่ม state สำหรับเก็บรายการไฟล์ที่จะลบ
+const [filesToDelete, setFilesToDelete] = useState([]);
+
+// ปรับปรุงฟังก์ชัน handleRemoveFile
+const deleteAttachmentsFromServer = async (newsId, fileIds) => {
+  // ถ้าไม่ได้ส่ง fileIds มาหรือเป็น array ว่าง จะลบไฟล์แนบทั้งหมดของข่าวนั้น
+  try {
+    const requestBody = {};
+    
+    // ถ้ามี fileIds ให้ส่งไปใน body, ถ้าไม่มีจะลบทั้งหมด
+    if (fileIds && Array.isArray(fileIds) && fileIds.length > 0) {
+      requestBody.attachment_ids = fileIds;
+    }
+
+    const response = await axios.delete(`http://localhost:5000/api/news/deleteattachment/${newsId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: requestBody
+    });
+         
+    if (response.data.message || response.status === 200) {
+      console.log('Attachments deleted successfully:', response.data.message);
+      return response.data; // ส่งข้อมูลทั้งหมดกลับไป
+    } else {
+      throw new Error(response.data.error || 'Failed to delete attachments');
+    }
+  } catch (error) {
+    console.error('Error deleting attachments:', error);
+    if (error.response) {
+      // Server responded with error status
+      throw new Error(error.response.data.error || error.response.data.detail || 'Server error');
+    } else {
+      // Network or other error
+      throw error;
+    }
+  }
+};
+
+// ปรับปรุงฟังก์ชัน handleRemoveFile
 const handleRemoveFile = (fileId) => {
-  setPreview(prevPreview => {
-    if (Array.isArray(prevPreview)) {
-      const updatedPreview = prevPreview.filter(file => file.id !== fileId);
-      
-      // ถ้าเป็นไฟล์ใหม่ที่สร้าง URL object ให้ revoke URL
-      const fileToRemove = prevPreview.find(file => file.id === fileId);
-      if (fileToRemove && fileToRemove.isNewFile) {
-        URL.revokeObjectURL(fileToRemove.url);
-      }
-      
-      // สำหรับไฟล์เก่าที่ไม่ใช่ newFile ให้เปลี่ยน url เป็น ''
-      if (fileToRemove && !fileToRemove.isNewFile) {
-        // อัปเดตสถานะไฟล์ที่ถูกลบ - เซ็ต url เป็น empty string
-        const updatedPreviewWithEmptyUrl = updatedPreview.map(file => {
-          if (file.id === fileId) {
-            return { ...file, url: '' };
-          }
-          return file;
-        });
-      }
-      
-      // อัปเดต form.file_name ด้วย (เฉพาะไฟล์ใหม่)
-      const newFiles = updatedPreview
-        .filter(file => file.isNewFile)
-        .map(file => file.originalFile)
-        .filter(Boolean);
-      
+  if (Array.isArray(preview)) {
+    const fileToRemove = preview.find(file => file.id === fileId);
+    
+    // อัพเดท preview โดยลบไฟล์ออก
+    const updatedPreview = preview.filter(file => file.id !== fileId);
+    setPreview(updatedPreview.length > 0 ? updatedPreview : null);
+    
+    // ถ้าเป็นไฟล์เก่า (ไม่ใช่ไฟล์ใหม่) ให้เพิ่มเข้าไปในรายการที่จะลบ
+    if (fileToRemove && !fileToRemove.isNewFile) {
+      setFilesToDelete(prev => [...prev, fileId]);
+    }
+    
+    // ถ้าเป็นไฟล์ใหม่ ให้ลบออกจาก form.attachment
+    if (fileToRemove && fileToRemove.isNewFile) {
+      // อัพเดท form.attachment ถ้าจำเป็น
       setForm(prev => ({
         ...prev,
-        file_name: newFiles.length > 0 ? newFiles : null
+        attachment: null // หรือจัดการตามโครงสร้างข้อมูลที่คุณใช้
       }));
-      
-      // เก็บข้อมูลไฟล์ที่ถูกลบไว้ใน state แยก (สำหรับส่งไปยัง backend)
-      if (fileToRemove && !fileToRemove.isNewFile) {
-        setForm(prev => ({
-          ...prev,
-          removedFiles: [...(prev.removedFiles || []), fileToRemove.id]
-        }));
-      }
-      
-      return updatedPreview.length > 0 ? updatedPreview : null;
     }
-    return prevPreview;
-  });
+  }
 };
+
 
 // หรือหากคุณต้องการให้แสดงไฟล์ที่ถูกลบแล้วแต่มี url เป็น '' ในการแสดงผล
 const handleRemoveFileAlternative = (fileId) => {
@@ -424,12 +442,6 @@ const handleOpenModal = (item = null) => {
   setModalOpen(true);
 };
 
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setEditItem(null);
-    setForm({ title: '', category: '', content: '', file_name: null });
-    setPreview(null);
-  };
 
   const handleChange = e => {
     const { name, value, type, checked, files } = e.target;
@@ -472,47 +484,91 @@ const handleOpenModal = (item = null) => {
   };
 
   // Updated handleSubmit function to handle form data properly
-  const handleSubmit = async e => {
-    e.preventDefault();
-    try {
-      const formData = new FormData();
-      formData.append('topic', form.title); // API expects 'topic'
-      formData.append('cate_news_id', getCategoryId(form.category));
-      formData.append('content', form.content);
-      
-      if (form.flie_name) {
+ const handleSubmit = async e => {
+  e.preventDefault();
+  try {
+    // ลบไฟล์ที่ถูกเลือกให้ลบก่อน (เฉพาะตอน edit)
+    if (editItem && filesToDelete.length > 0) {
+      try {
+        // ส่ง newsId เป็น parameter แรก
+        const deleteResult = await deleteAttachmentsFromServer(editItem.NewsId, filesToDelete);
+        console.log(`Successfully deleted ${deleteResult.deleted_count} file(s)`);
+        console.log(`Remaining files: ${deleteResult.remaining_count}`);
+      } catch (deleteError) {
+        console.error('Failed to delete some attachments, but continuing with update:', deleteError);
+        // ยังคงดำเนินการต่อแม้ว่าการลบไฟล์จะล้มเหลว
+        // คุณสามารถเปลี่ยนพฤติกรรมนี้ได้ตามต้องการ
+        
+        // ถ้าต้องการให้หยุดทำงานเมื่อลบไฟล์ล้มเหลว ให้ uncomment บรรทัดนี้
+        // throw deleteError;
+      }
+    }
+
+    const formData = new FormData();
+    formData.append('topic', form.title); // API expects 'topic'
+    formData.append('cate_news_id', getCategoryId(form.category));
+    formData.append('content', form.content);
+    
+    // ปรับปรุงการจัดการไฟล์แนบ
+    if (form.attachment) {
+      // ตรวจสอบว่าเป็น FileList หรือ File object
+      if (form.attachment instanceof FileList) {
+        // Multiple files
+        Array.from(form.attachment).forEach(file => {
+          formData.append('flie_name', file); // ใช้ชื่อเดิมตาม API
+        });
+      } else if (form.attachment instanceof File) {
+        // Single file
         formData.append('flie_name', form.attachment);
       }
-
-      let response;
-      if (editItem) {
-        // Update existing news
-        response = await axios.put(`http://localhost:5000/api/news/updatenews/${editItem.NewsId}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-      } else {
-        // Create new news
-        response = await axios.post(CREATE_URL, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-      }
-
-      if (response.data.success || response.status === 200 || response.status === 201) {
-        await fetchNews();
-        handleCloseModal();
-        alert(editItem ? 'News updated successfully!' : 'News created successfully!');
-      } else {
-        throw new Error(response.data.message || 'Failed to save news');
-      }
-    } catch (error) {
-      console.error('Error saving news:', error);
-      alert(error.response?.data?.message || error.message || 'Failed to save news. Please try again.');
     }
-  };
+
+    let response;
+    if (editItem) {
+      // Update existing news
+      response = await axios.put(`http://localhost:5000/api/news/updatenews/${editItem.NewsId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      // Create new news
+      response = await axios.post(CREATE_URL, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+
+    if (response.data.success || response.status === 200 || response.status === 201) {
+      // รีเซ็ตรายการไฟล์ที่จะลบหลังสำเร็จ
+      setFilesToDelete([]);
+      
+      await fetchNews();
+      handleCloseModal();
+      alert(editItem ? 'News updated successfully!' : 'News created successfully!');
+    } else {
+      throw new Error(response.data.message || 'Failed to save news');
+    }
+  } catch (error) {
+    console.error('Error saving news:', error);
+    alert(error.response?.data?.message || error.message || 'Failed to save news. Please try again.');
+  }
+};
+
+// ปรับปรุง handleCloseModal เพื่อรีเซ็ต filesToDelete
+const handleCloseModal = () => {
+  setModalOpen(false);
+  setEditItem(null);
+  setForm({
+    title: '',
+    category: '',
+    content: '',
+    attachment: null
+  });
+  setPreview(null);
+  setFilesToDelete([]); // รีเซ็ตรายการไฟล์ที่จะลบ
+};
 
   const handleDelete = async (id) => {
     setSelectedNews(id);
@@ -855,7 +911,7 @@ const getAttachmentPath = (item) => {
         </div>
       </div>
 
-      {modalOpen && (
+  {modalOpen && (
   <div className="modal-overlay">
     <div className="edit-modal">
       <div className="edit-modal-header">
@@ -900,80 +956,149 @@ const getAttachmentPath = (item) => {
             rows="6"
           />
         </div>
-     
 
-      <div className="edit-form-group">
-  <label>Attachment</label>
-  
-  <div className="edit-file-preview">
-    {preview ? (
-      Array.isArray(preview) ? (
-        <div className="multiple-attachments">
-          <div className="attachment-header">
-            <FiFile />
-            <span>Attachments ({preview.length} files)</span>
-          </div>
-          <div className="attachment-list">
-            {preview.map((file, index) => (
-              <div key={file.id || index} className="attachment-item-container">
-                <a
-                  href={file.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="attachment-item"
-                >
-                  <FiFile />
-                  <span>{file.name}</span>
-                  <small>({file.type})</small>
-                  {file.isNewFile && <span className="new-file-badge">New</span>}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveFile(file.id)}
-                  className="remove-file-btn"
-                  title="Remove file"
-                >
-                  ×
-                </button>
+        <div className="edit-form-group">
+          <label>Attachment</label>
+          
+          {/* แสดงไฟล์ที่มีอยู่แล้ว */}
+          <div className="edit-file-preview">
+            {preview ? (
+              Array.isArray(preview) ? (
+                <div className="multiple-attachments">
+                  <div className="attachment-header">
+                    <FiFile />
+                    <span>Current Attachments ({preview.length} files)</span>
+                    {filesToDelete.length > 0 && (
+                      <small style={{color: 'red', marginLeft: '10px', fontWeight: 'bold'}}>
+                        ({filesToDelete.length} file(s) will be deleted)
+                      </small>
+                    )}
+                  </div>
+                  <div className="attachment-list">
+                    {preview.map((file, index) => (
+                      <div key={file.id || index} className="attachment-item-container">
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="attachment-item"
+                          style={{
+                            opacity: filesToDelete.includes(file.id) ? 0.5 : 1,
+                            textDecoration: filesToDelete.includes(file.id) ? 'line-through' : 'none'
+                          }}
+                        >
+                          <FiFile />
+                          <span>{file.name}</span>
+                          <small>({file.type})</small>
+                          {file.isNewFile && <span className="new-file-badge">New</span>}
+                          {filesToDelete.includes(file.id) && (
+                            <span className="delete-badge" style={{color: 'red', marginLeft: '5px'}}>
+                              [Will be deleted]
+                            </span>
+                          )}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(file.id)}
+                          className="remove-file-btn"
+                          title="Remove file"
+                          style={{
+                            backgroundColor: filesToDelete.includes(file.id) ? '#dc3545' : '#6c757d'
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="single-attachment">
+                  <a href={preview} target="_blank" rel="noopener noreferrer" className="has-preview">
+                    <FiFile />
+                    <span>Current attachment - Click to preview</span>
+                  </a>
+                </div>
+              )
+            ) : (
+              <div className="no-preview">
+                <FiFile />
+                <span>No attachment available</span>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      ) : (
-        <div className="single-attachment">
-          <a href={preview} target="_blank" rel="noopener noreferrer" className="has-preview">
-            <FiFile />
-            <span>Current attachment - Click to preview</span>
-          </a>
-        </div>
-      )
-    ) : (
-      <div className="no-preview">
-        <FiFile />
-        <span>No attachment available</span>
-      </div>
-    )}
-  </div>
 
+          {/* Input สำหรับเลือกไฟล์ใหม่ */}
+          <div className="file-input-section" style={{marginTop: '15px'}}>
+            <label htmlFor="attachment-input" style={{fontSize: '14px', fontWeight: 'bold', color: '#333'}}>
+              {editItem ? 'Add New Files:' : 'Select Files:'}
+            </label>
+            <input
+              id="attachment-input"
+              type="file"
+              name="attachment"
+              onChange={handleChange}
+              multiple
+              accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xlsx,.xls,.txt"
+              className="file-input"
+              style={{
+                marginTop: '5px',
+                padding: '8px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                width: '100%'
+              }}
+            />
+          </div>
 
-  <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
-    You can select multiple files. Supported formats: Images, PDF, Word, Excel, Text
-  </small>
-</div>
+          <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
+            You can select multiple files. Supported formats: Images, PDF, Word, Excel, Text
+          </small>
+
+          {/* แสดงสถานะการเปลี่ยนแปลง */}
+          {(filesToDelete.length > 0 || (form.attachment && form.attachment.length > 0)) && (
+            <div className="changes-summary" style={{
+              marginTop: '10px',
+              padding: '8px',
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px',
+              fontSize: '12px'
+            }}>
+              <strong>Changes Summary:</strong>
+              {filesToDelete.length > 0 && (
+                <div style={{color: 'red'}}>
+                  • {filesToDelete.length} file(s) will be deleted
+                </div>
+              )}
+              {form.attachment && form.attachment.length > 0 && (
+                <div style={{color: 'green'}}>
+                  • {form.attachment.length} new file(s) will be added
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         
         <div className="edit-form-actions">
           <button type="button" onClick={handleCloseModal} className="edit-cancel-btn">
             Cancel
           </button>
-          <button type="submit" className="edit-submit-btn">
+          <button 
+            type="submit" 
+            className="edit-submit-btn"
+            style={{
+              backgroundColor: filesToDelete.length > 0 ? '#dc3545' : '#007bff'
+            }}
+          >
             {editItem ? 'Update' : 'Create'}
+            {filesToDelete.length > 0 && ` (Delete ${filesToDelete.length} files)`}
           </button>
         </div>
       </form>
     </div>
   </div>
 )}
-
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
         <div className="modal-overlay">
