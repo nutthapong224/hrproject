@@ -356,85 +356,132 @@ const handleSiblingInputChange = (index, field, value) => {
     };
   });
 };
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  try {
     const formDataToSend = new FormData();
     
-    // เพิ่มข้อมูลพื้นฐาน
-
-     const allFiles = [];
-  
-  // รวบรวมไฟล์จากทุกประเภท
-  ['jobApplication', 'certificate', 'nationalId', 'householdRegistration', 
-   'bankBook', 'employmentContract'].forEach(documentType => {
-    if (formData[documentType] && formData[documentType].length > 0) {
-      allFiles.push(...formData[documentType]);
+    // Define document types and their descriptions
+    const documentTypes = ['jobApplication', 'certificate', 'nationalId', 'householdRegistration', 'bankBook', 'employmentContract'];
+    const documentTypeDescriptions = {
+      'jobApplication': 'Job Application',
+      'certificate': 'Certificate', 
+      'nationalId': 'National ID Copy',
+      'householdRegistration': 'House Registration Copy',
+      'bankBook': 'Bank Book Copy',
+      'employmentContract': 'Employment Contract'
+    };
+    
+    // Collect all files with their descriptions
+    const allFiles = [];
+    const fileDescriptions = [];
+    
+    documentTypes.forEach(documentType => {
+      if (formData[documentType] && formData[documentType].length > 0) {
+        formData[documentType].forEach(file => {
+          allFiles.push(file);
+          // Add description based on document type
+          fileDescriptions.push(documentTypeDescriptions[documentType]);
+        });
+      }
+    });
+    
+    // Append all files with the same key name 'file_name'
+    allFiles.forEach((file) => {
+      formDataToSend.append('file_name', file);
+    });
+    
+    // Send file descriptions as JSON string
+    if (fileDescriptions.length > 0) {
+      formDataToSend.append('file_descriptions', JSON.stringify(fileDescriptions));
     }
-  });
-  
-  // เพิ่มไฟล์ทั้งหมดลงใน file_name (key เดียวกัน - multiple files)
-  allFiles.forEach((file) => {
-    formDataToSend.append('file_name', file);
-  });
-
+    
+    // Handle children data
     if (formData.children && formData.children.length > 0) {
-    formData.children.forEach((child, index) => {
-      if (child && child.child_name) { // Only add if child has a name
-        formDataToSend.append(`children_data[${index}][child_name]`, child.child_name || '');
-        
-        // Handle birthdate - send null if undefined/empty
-        const birthdate = child.child_birthdate;
-        if (birthdate && birthdate !== 'undefined' && birthdate !== '') {
-          formDataToSend.append(`children_data[${index}][child_birthdate]`, birthdate);
-        } else {
-          formDataToSend.append(`children_data[${index}][child_birthdate]`, ''); // or omit this line to send null
+      formData.children.forEach((child, index) => {
+        if (child && child.child_name && child.child_name.trim()) {
+          formDataToSend.append(`children_data[${index}][child_name]`, child.child_name);
+          
+          // Handle birthdate properly
+          const birthdate = child.child_birthdate;
+          if (birthdate && birthdate !== 'undefined' && birthdate.trim() !== '') {
+            formDataToSend.append(`children_data[${index}][child_birthdate]`, birthdate);
+          }
+        }
+      });
+    }
+    
+    // Handle other form data
+    const arrayFields = ['children', 'siblings_data', 'education_history_data', 'work_experience_data'];
+    const excludeFields = [...documentTypes, 'file_name', ...arrayFields];
+    
+    Object.keys(formData).forEach(key => {
+      if (arrayFields.includes(key)) {
+        // Handle array data (excluding children which is handled above)
+        if (key !== 'children' && Array.isArray(formData[key])) {
+          formData[key].forEach((item, index) => {
+            if (item && typeof item === 'object') {
+              Object.keys(item).forEach(field => {
+                if (item[field] !== null && item[field] !== undefined && item[field] !== '') {
+                  formDataToSend.append(`${key}[${index}][${field}]`, item[field]);
+                }
+              });
+            }
+          });
+        }
+      } else if (!excludeFields.includes(key)) {
+        // Handle regular form fields
+        const value = formData[key];
+        if (value !== null && value !== undefined && value !== '') {
+          if (typeof value === 'boolean') {
+            formDataToSend.append(key, value ? 'true' : 'false');
+          } else {
+            formDataToSend.append(key, value);
+          }
         }
       }
     });
-  }
-  
-    Object.keys(formData).forEach(key => {
-      if (key === 'children' || key === 'siblings_data' || 
-          key === 'education_history_data' || key === 'work_experience_data') {
-        // จัดการ array data
-        formData[key].forEach((item, index) => {
-          Object.keys(item).forEach(field => {
-            formDataToSend.append(`${key}[${index}][${field}]`, item[field]);
-          });
-        });
-      } else if (!['jobApplication', 'certificate', 'nationalId', 'householdRegistration', 
-                 'bankBook', 'employmentContract', 'file_name'].includes(key)) {
-      if (typeof formData[key] === 'boolean') {
-        formDataToSend.append(key, formData[key] ? 'true' : 'false');
-      } else if (formData[key] !== null && formData[key] !== undefined) {
-        formDataToSend.append(key, formData[key]);
-      }
-    } else {
-        formDataToSend.append(key, formData[key]);
-      }
+    
+    // Remove document_descriptions line since we're using file_descriptions
+    // formDataToSend.append('document_descriptions', JSON.stringify(documentTypeDescriptions));
+    
+    // Send the request
+    console.log('Sending files count:', allFiles.length);
+    console.log('File descriptions:', fileDescriptions);
+    
+    const response = await fetch('http://localhost:5000/api/employee/addemployee', {
+      method: 'POST',
+      body: formDataToSend
     });
-
-    try {
-      const response = await fetch('http://localhost:5000/api/employee/addemployee', {
-        method: 'POST',
-        body: formDataToSend
-      });
-
-      if (response.ok) {
-        console.log('Employee added successfully');
-        // Reset form หรือทำอะไรต่อตามต้องการ
-      } else {
-        console.error('Failed to add employee');
-      }
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log('Employee added successfully:', result);
+      console.log('Files uploaded:', result.uploaded_files);
       
-       setShowSuccessPopup(true)
-    } catch (error) {
-      console.error('Error:', error);
+      // Show success popup
+      setShowSuccessPopup(true);
+      
+      // Optional: Reset form after successful submission
+      // resetForm();
+      
+    } else {
+      const errorData = await response.json();
+      console.error('Failed to add employee:', errorData);
+      
+      // You can show error message to user here
+      alert('Failed to add employee. Please try again.');
     }
-  };
-
-
+    
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    
+    // Show error message to user
+    alert('An error occurred. Please check your connection and try again.');
+  }
+};
   const handleSuccessClose = () => {
     setShowSuccessPopup(false)
     navigate('/employees')
