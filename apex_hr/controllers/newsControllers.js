@@ -49,12 +49,12 @@ exports.getcategorynews = async (req, res) => {
     return res.status(500).json({ message: 'Database query failed', error: err.message });
   }
 };
+
 exports.addnews = async (req, res) => {
   const {
     topic,
     content,
     cate_news_id,
-    attachment_id,
     pin = 0,
     hide = 0,
     status = 'ACTIVE',
@@ -67,20 +67,18 @@ exports.addnews = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    let finalAttachmentId = attachment_id;
+    // ✅ บันทึกข่าวก่อน (ไม่มี attachment_id)
+    const [newsResult] = await connection.query(
+      `INSERT INTO news (topic, content, cate_news_id, pin, hide, status, create_date, modify_date)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [topic, content, cate_news_id, pin, hide, status]
+    );
 
-    // ถ้ายังไม่มี attachment_id ให้สร้างใหม่
-    if (!finalAttachmentId) {
-      const [insertAttachment] = await connection.query(
-        `INSERT INTO attachment (reference_type, create_name, modify_name, create_date, modify_date) VALUES (?, ?, ?, NOW(), NOW())`,
-        ['news', create_name, modify_name]
-      );
-      finalAttachmentId = insertAttachment.insertId;
-    }
+    const newNewsId = newsResult.insertId; // ใช้ชื่อ newNewsId ตามที่ต้องการ
 
-    // จัดการไฟล์หลายตัว - สร้าง attachment ใหม่สำหรับแต่ละไฟล์
+    // ✅ จัดการไฟล์แนบ (ถ้ามี) โดยใช้ newNewsId ใส่ลงใน reference_id
     const uploadedFiles = [];
-    const allAttachmentIds = [finalAttachmentId]; // เก็บ ID หลักก่อน
+    const allAttachmentIds = [];
 
     if (req.files && req.files['file_name'] && req.files['file_name'].length > 0) {
       for (let i = 0; i < req.files['file_name'].length; i++) {
@@ -88,74 +86,33 @@ exports.addnews = async (req, res) => {
         const fileName = file.filename;
         const filePath = `/uploads/${fileName}`;
 
-        if (i === 0) {
-          // ไฟล์แรก - อัพเดท attachment หลัก
-          await connection.query(
-            `UPDATE attachment SET file_name = ?, file_path = ?, modify_date = NOW() WHERE attachment_id = ?`,
-            [fileName, filePath, finalAttachmentId]
-          );
+        // สร้าง attachment แต่ละไฟล์ โดยใช้ newNewsId ใส่ใน reference_id
+        const [attachmentResult] = await connection.query(
+          `INSERT INTO attachment (file_name, file_path, reference_type, reference_id, description, create_name, modify_name, create_date, modify_date) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [fileName, filePath, 'news', newNewsId, 'news', create_name, modify_name]
+        );
 
-          uploadedFiles.push({
-            attachment_id: finalAttachmentId,
-            file_name: fileName,
-            file_path: filePath
-          });
-        } else {
-          // ไฟล์ที่ 2, 3, 4... - สร้าง attachment ใหม่
-          const [newAttachment] = await connection.query(
-            `INSERT INTO attachment (file_name, file_path, reference_type, create_name, modify_name, create_date, modify_date) 
-             VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-            [fileName, filePath, 'news', create_name, modify_name]
-          );
-
-          allAttachmentIds.push(newAttachment.insertId);
-          uploadedFiles.push({
-            attachment_id: newAttachment.insertId,
-            file_name: fileName,
-            file_path: filePath
-          });
-        }
+        allAttachmentIds.push(attachmentResult.insertId);
+        uploadedFiles.push({
+          attachment_id: attachmentResult.insertId,
+          file_name: fileName,
+          file_path: filePath
+        });
       }
-    }
-
-    // บันทึกข่าว - ใช้ attachment_id หลัก
-    const insertNewsQuery = `
-      INSERT INTO news (topic, content, cate_news_id, attachment_id, pin, hide, status, create_date, modify_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `;
-    const [newsResult] = await connection.query(insertNewsQuery, [
-      topic,
-      content,
-      cate_news_id,
-      finalAttachmentId,
-      pin,
-      hide,
-      status
-    ]);
-
-    const insertedNewsId = newsResult.insertId;
-
-    // อัปเดต reference_id ใน attachment ทั้งหมดให้ชี้ไปที่ news_id ที่เพิ่มเข้ามา
-    for (const attachmentId of allAttachmentIds) {
-      await connection.query(
-        `UPDATE attachment SET reference_id = ? WHERE attachment_id = ?`,
-        [insertedNewsId, attachmentId]
-      );
     }
 
     await connection.commit();
 
     return res.status(200).json({
       message: 'เพิ่มข้อมูลข่าวสำเร็จ',
-      insertedId: insertedNewsId,
-      main_attachment_id: finalAttachmentId,
-      all_attachment_ids: allAttachmentIds,
+      insertedId: newNewsId,
+      attachment_ids: allAttachmentIds,
       data: {
-        id: insertedNewsId,
+        id: newNewsId,
         topic,
         content,
         cate_news_id,
-        attachment_id: finalAttachmentId,
         uploaded_files: uploadedFiles,
         files_count: uploadedFiles.length,
         pin,
@@ -177,6 +134,8 @@ exports.addnews = async (req, res) => {
     connection.release();
   }
 };
+
+
 
 
 exports.addnewsFixed = async (req, res) => {
@@ -308,57 +267,66 @@ exports.updatenews = async (req, res) => {
   const {
     topic,
     content,
-    cate_news_id,
-    attachment_id,
-    modify_name = null
+    cate_news_id
+ 
   } = req.body;
 
+  const connection = await pool.getConnection();
+
   try {
-    const [existingNews] = await pool.query(
+    await connection.beginTransaction();
+
+    // ตรวจสอบว่าข่าวมีอยู่หรือไม่
+    const [existingNews] = await connection.query(
       'SELECT * FROM news WHERE id = ?',
       [newsId]
     );
 
     if (existingNews.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ error: 'ไม่พบข่าวที่ต้องการแก้ไข' });
     }
 
+    // ตรวจสอบหมวดหมู่ข่าว (ถ้ามี)
     if (cate_news_id) {
-      const [cateResult] = await pool.query(
+      const [cateResult] = await connection.query(
         'SELECT cate_news_id FROM master_cate_news WHERE cate_news_id = ?',
         [cate_news_id]
       );
 
       if (cateResult.length === 0) {
+        await connection.rollback();
         return res.status(400).json({ error: 'ไม่พบหมวดหมู่ข่าวที่เลือก' });
       }
     }
 
-    let finalAttachmentId = attachment_id || existingNews[0].attachment_id;
+    // จัดการไฟล์แนบใหม่ (ถ้ามี)
+    const uploadedFiles = [];
+    const newAttachmentIds = [];
 
-    let uploadedFile = null;
-    if (req.files && req.files['file_name'] && req.files['file_name'][0]) {
-      uploadedFile = req.files['file_name'][0].filename;
-    }
-    let filePath = uploadedFile ? `/uploads/${uploadedFile}` : null;
+    if (req.files && req.files['file_name'] && req.files['file_name'].length > 0) {
+      for (let i = 0; i < req.files['file_name'].length; i++) {
+        const file = req.files['file_name'][i];
+        const fileName = file.filename;
+        const filePath = `/uploads/${fileName}`;
 
-    if (uploadedFile || !finalAttachmentId) {
-      if (!finalAttachmentId) {
-        const [insertAttachment] = await pool.query(
-          `INSERT INTO attachment (create_name, modify_name) VALUES (?, ?)`,
-          [existingNews[0].create_name, modify_name]
+        // สร้าง attachment ใหม่โดยใช้ newsId ใส่ใน reference_id
+        const [attachmentResult] = await connection.query(
+          `INSERT INTO attachment (file_name, file_path, reference_type, reference_id, description, create_name,create_date, modify_date) 
+           VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [fileName, filePath, 'news', newsId, 'news', existingNews[0].create_name, modify_name]
         );
-        finalAttachmentId = insertAttachment.insertId;
-      }
 
-      if (uploadedFile) {
-        await pool.query(
-          `UPDATE attachment SET file_name = ?, file_path = ?, modify_name = ? WHERE attachment_id = ?`,
-          [uploadedFile, filePath, modify_name, finalAttachmentId]
-        );
+        newAttachmentIds.push(attachmentResult.insertId);
+        uploadedFiles.push({
+          attachment_id: attachmentResult.insertId,
+          file_name: fileName,
+          file_path: filePath
+        });
       }
     }
 
+    // อัปเดตข้อมูลข่าว
     let updateFields = [];
     let updateValues = [];
 
@@ -374,10 +342,7 @@ exports.updatenews = async (req, res) => {
       updateFields.push('cate_news_id = ?');
       updateValues.push(cate_news_id);
     }
-    if (finalAttachmentId !== undefined) {
-      updateFields.push('attachment_id = ?');
-      updateValues.push(finalAttachmentId);
-    }
+  
 
     updateFields.push('modify_date = NOW()');
     updateValues.push(newsId);
@@ -388,42 +353,74 @@ exports.updatenews = async (req, res) => {
       WHERE id = ?
     `;
 
-    const [updateResult] = await pool.query(updateNewsQuery, updateValues);
+    const [updateResult] = await connection.query(updateNewsQuery, updateValues);
 
     if (updateResult.affectedRows === 0) {
+      await connection.rollback();
       return res.status(400).json({ error: 'ไม่สามารถอัปเดตข่าวได้' });
     }
 
-    const [updatedNews] = await pool.query(
-      `SELECT n.*, a.file_name, a.file_path, a.create_name, a.modify_name
+    // ดึงข้อมูลข่าวที่อัปเดตแล้ว พร้อมไฟล์แนบทั้งหมด
+    const [updatedNews] = await connection.query(
+      `SELECT n.*, 
+              GROUP_CONCAT(
+                CONCAT(
+                  '{"attachment_id":', a.attachment_id, 
+                  ',"file_name":"', IFNULL(a.file_name, ''), 
+                  '","file_path":"', IFNULL(a.file_path, ''), 
+                  '","create_name":"', IFNULL(a.create_name, ''), 
+                  '"}'
+                ) SEPARATOR ','
+              ) as attachments_json
        FROM news n 
-       LEFT JOIN attachment a ON n.attachment_id = a.attachment_id 
-       WHERE n.id = ?`,
+       LEFT JOIN attachment a ON n.id = a.reference_id AND a.reference_type = 'news'
+       WHERE n.id = ?
+       GROUP BY n.id`,
       [newsId]
     );
 
+    // แปลง JSON string เป็น array
+    let attachments = [];
+    if (updatedNews[0].attachments_json) {
+      try {
+        const attachmentsStr = '[' + updatedNews[0].attachments_json + ']';
+        attachments = JSON.parse(attachmentsStr);
+      } catch (parseError) {
+        console.error('Error parsing attachments JSON:', parseError);
+        attachments = [];
+      }
+    }
+
+    await connection.commit();
+
     return res.status(200).json({
       message: 'อัปเดตข้อมูลข่าวสำเร็จ',
+      new_attachment_ids: newAttachmentIds,
       data: {
         id: parseInt(newsId),
         topic: updatedNews[0].topic,
         content: updatedNews[0].content,
         cate_news_id: updatedNews[0].cate_news_id,
-        attachment_id: updatedNews[0].attachment_id,
-        attachment: {
-          file_name: updatedNews[0].file_name,
-          file_path: updatedNews[0].file_path,
-          create_name: updatedNews[0].create_name,
-          modify_name: updatedNews[0].modify_name
-        },
+        attachments: attachments,
+        uploaded_files: uploadedFiles,
+        files_count: uploadedFiles.length,
+        total_attachments: attachments.length,
         create_date: updatedNews[0].create_date,
-        modify_date: updatedNews[0].modify_date
+        modify_date: updatedNews[0].modify_date,
+        create_name: updatedNews[0].create_name,
+        modify_name: updatedNews[0].modify_name
       }
     });
 
   } catch (err) {
+    await connection.rollback();
     console.error('Database error:', err);
-    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการอัปเดตข่าว', detail: err.message });
+    res.status(500).json({ 
+      error: 'เกิดข้อผิดพลาดในการอัปเดตข่าว', 
+      detail: err.message 
+    });
+  } finally {
+    connection.release();
   }
 };
 
@@ -437,26 +434,20 @@ exports.getNewsById = async (req, res) => {
       return res.status(400).json({ error: 'กรุณาระบุ ID ของข่าวที่ถูกต้อง' });
     }
 
-    // ดึงข้อมูลข่าวพร้อมกับข้อมูล attachment และหมวดหมู่
+    // ดึงข้อมูลข่าวพื้นฐาน
     const getNewsQuery = `
       SELECT 
         n.id,
         n.topic,
         n.content,
         n.cate_news_id,
-        n.attachment_id,
         n.pin,
         n.hide,
         n.status,
         n.create_date,
         n.modify_date,
-        a.file_name,
-        a.file_path,
-        a.create_name as attachment_create_name,
-        a.modify_name as attachment_modify_name
-        
+        c.name as category_name
       FROM news n
-      LEFT JOIN attachment a ON n.attachment_id = a.attachment_id
       LEFT JOIN master_cate_news c ON n.cate_news_id = c.cate_news_id
       WHERE n.id = ?
     `;
@@ -470,19 +461,32 @@ exports.getNewsById = async (req, res) => {
 
     const newsData = newsResult[0];
 
+    // ดึง attachments ที่ reference_id = news.id และ description = 'news'
+    const attachmentQuery = `
+      SELECT 
+        attachment_id,
+        file_name,
+        file_path,
+        file_type,
+        create_name as attachment_create_name,
+        modify_name as attachment_modify_name,
+        create_date as attachment_create_date,
+        modify_date as attachment_modify_date
+      FROM attachment 
+      WHERE reference_id = ? AND description = 'news'
+      ORDER BY attachment_id ASC
+    `;
+
+    const [attachments] = await pool.query(attachmentQuery, [id]);
+
     // จัดรูปแบบข้อมูลที่ส่งกลับ
     const responseData = {
       id: newsData.id,
       topic: newsData.topic,
       content: newsData.content,
       cate_news_id: newsData.cate_news_id,
-      attachment_id: newsData.attachment_id,
-      attachment: newsData.attachment_id ? {
-        file_name: newsData.file_name,
-        file_path: newsData.file_path,
-        create_name: newsData.attachment_create_name,
-        modify_name: newsData.attachment_modify_name
-      } : null,
+      category_name: newsData.category_name,
+      attachments: attachments, // ส่งเป็น array ของ attachment objects
       pin: newsData.pin,
       hide: newsData.hide,
       status: newsData.status,
@@ -497,9 +501,9 @@ exports.getNewsById = async (req, res) => {
 
   } catch (err) {
     console.error('Database error:', err);
-    res.status(500).json({ 
-      error: 'เกิดข้อผิดพลาดในการดึงข้อมูลข่าว', 
-      detail: err.message 
+    res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการดึงข้อมูลข่าว',
+      detail: err.message
     });
   }
 };
@@ -513,7 +517,6 @@ exports.getnewsbyadmin = async (req, res) => {
       n.topic,
       n.content,
       n.cate_news_id,
-      n.attachment_id AS news_attachment_id,
       n.pin,
       n.pin_order,
       n.pinned_at,
@@ -521,14 +524,9 @@ exports.getnewsbyadmin = async (req, res) => {
       n.status,
       n.create_date,
       n.modify_date,
-      mc.name AS category_name,
-      a.attachment_id AS attachment_id,
-      a.file_name,
-      a.file_path,
-      a.file_type
+      mc.name AS category_name
     FROM news n
-    LEFT JOIN master_cate_news mc ON n.cate_news_id = mc.cate_news_id
-    LEFT JOIN attachment a ON a.reference_id = n.id 
+    LEFT JOIN master_cate_news mc ON n.cate_news_id = mc.cate_news_id 
     ORDER BY 
       CASE WHEN n.pin = 1 THEN 0 ELSE 1 END,
       n.pin_order ASC,
@@ -536,19 +534,42 @@ exports.getnewsbyadmin = async (req, res) => {
   `;
 
   try {
-    const [results] = await pool.query(sql);
+    const [newsResults] = await pool.query(sql);
 
-    if (results.length === 0) {
+    if (newsResults.length === 0) {
       return res.status(404).send("No news found.");
     }
 
-    res.status(200).json(results);
+    // ดึง attachment สำหรับแต่ละข่าว
+    const newsWithAttachments = await Promise.all(
+      newsResults.map(async (news) => {
+        // ดึง attachments ที่ reference_id = news.id และ description = 'news'
+        const attachmentSql = `
+          SELECT 
+            attachment_id,
+            file_name,
+            file_path,
+            file_type
+          FROM attachment 
+          WHERE reference_id = ? AND description = 'news'
+          ORDER BY attachment_id ASC
+        `;
+        
+        const [attachments] = await pool.query(attachmentSql, [news.id]);
+        
+        return {
+          ...news,
+          attachments: attachments // ส่งเป็น array ของ attachment objects
+        };
+      })
+    );
+
+    res.status(200).json(newsWithAttachments);
   } catch (err) {
     console.error("Error fetching news:", err);
     res.status(500).send("Error fetching news.");
   }
 };
-
 
 exports.getnewsbyuser = async (req, res) => {
   const sql = "SELECT * FROM news WHERE hide = 0";
@@ -744,5 +765,103 @@ exports.unpinNewsById = async (req, res) => {
   } catch (err) {
     console.error('Database error:', err);
     return res.status(500).json({ error: 'เกิดข้อผิดพลาดใน unpin', detail: err.message });
+  }
+};
+
+
+exports.deleteMultipleNewsAttachments = async (req, res) => {
+  const newsId = req.params.news_id;
+  const { attachment_ids } = req.body; // array ของ attachment_id
+
+  if (!attachment_ids || !Array.isArray(attachment_ids) || attachment_ids.length === 0) {
+    return res.status(400).json({ error: 'กรุณาระบุ attachment_ids ที่ต้องการลบ' });
+  }
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // ตรวจสอบว่าข่าวมีอยู่หรือไม่
+    const [existingNews] = await connection.query(
+      'SELECT * FROM news WHERE id = ?',
+      [newsId]
+    );
+
+    if (existingNews.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'ไม่พบข่าวที่ระบุ' });
+    }
+
+    // ตรวจสอบว่า attachments ทั้งหมดมีอยู่และตรงกับ news_id หรือไม่
+    const placeholders = attachment_ids.map(() => '?').join(',');
+    const [existingAttachments] = await connection.query(
+      `SELECT * FROM attachment 
+       WHERE attachment_id IN (${placeholders}) 
+       AND reference_id = ? AND reference_type = ?`,
+      [...attachment_ids, newsId, 'news']
+    );
+
+    if (existingAttachments.length !== attachment_ids.length) {
+      await connection.rollback();
+      return res.status(404).json({ 
+        error: 'ไม่พบไฟล์แนบบางไฟล์หรือไฟล์แนบไม่ตรงกับข่าวที่ระบุ' 
+      });
+    }
+
+    // เก็บข้อมูลไฟล์ก่อนลบ
+    const deletedFiles = existingAttachments.map(att => ({
+      attachment_id: att.attachment_id,
+      file_name: att.file_name,
+      file_path: att.file_path
+    }));
+
+    // ลบ attachments จากฐานข้อมูล
+    const [deleteResult] = await connection.query(
+      `DELETE FROM attachment 
+       WHERE attachment_id IN (${placeholders}) 
+       AND reference_id = ? AND reference_type = ?`,
+      [...attachment_ids, newsId, 'news']
+    );
+
+    if (deleteResult.affectedRows === 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'ไม่สามารถลบไฟล์แนบได้' });
+    }
+
+    // อัปเดต modify_date ของข่าว
+    await connection.query(
+      'UPDATE news SET modify_date = NOW() WHERE id = ?',
+      [newsId]
+    );
+
+    // ดึงข้อมูลไฟล์แนบที่เหลืออยู่
+    const [remainingAttachments] = await connection.query(
+      `SELECT attachment_id, file_name, file_path, create_name, create_date
+       FROM attachment 
+       WHERE reference_id = ? AND reference_type = ?
+       ORDER BY create_date DESC`,
+      [newsId, 'news']
+    );
+
+    await connection.commit();
+
+    return res.status(200).json({
+      message: `ลบไฟล์แนบสำเร็จ ${deleteResult.affectedRows} ไฟล์`,
+      deleted_files: deletedFiles,
+      deleted_count: deleteResult.affectedRows,
+      remaining_attachments: remainingAttachments,
+      remaining_count: remainingAttachments.length
+    });
+
+  } catch (err) {
+    await connection.rollback();
+    console.error('Database error:', err);
+    res.status(500).json({ 
+      error: 'เกิดข้อผิดพลาดในการลบไฟล์แนบ', 
+      detail: err.message 
+    });
+  } finally {
+    connection.release();
   }
 };

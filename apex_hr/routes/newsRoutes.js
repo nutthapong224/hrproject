@@ -4,7 +4,7 @@ const {
   getcategorynews, addnews, upload, getNewsById, updatenews, 
   hideNewsById, unhideNewsById, deleteNewsById, 
   pinNewsById, unpinNewsById, getnewsbyadmin, getnewsbyuser, 
-  togglePinStatus 
+  togglePinStatus, deleteMultipleNewsAttachments
 } = require('../controllers/newsControllers');
 
 /**
@@ -212,5 +212,5 @@ router.put('/updatenews/:id', upload.fields([
  *         description: ลบสำเร็จ
  */
 router.delete('/deletenews/:id', deleteNewsById);
-
+router.delete('/deleteattachment/:id', deleteMultipleNewsAttachments);
 module.exports = router;

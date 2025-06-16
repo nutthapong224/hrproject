@@ -99,3 +99,15 @@
 {"level":"info","message":"Database connected successfully","timestamp":"2025-06-14T12:57:00.622Z"}
 {"level":"info","message":"Database connected successfully","timestamp":"2025-06-14T13:06:23.011Z"}
 {"level":"info","message":"Database connected successfully","timestamp":"2025-06-14T13:11:10.373Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T02:04:13.227Z"}
+{"level":"error","message":"Database connection failed: connect ETIMEDOUT","timestamp":"2025-06-16T02:40:24.965Z"}
+{"level":"info","message":"Retrying connection... (5 retries left)","timestamp":"2025-06-16T02:40:24.966Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T02:40:29.968Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T02:49:31.279Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T02:54:20.781Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T03:10:04.520Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T03:18:42.691Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T04:00:27.831Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T04:04:40.158Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T04:07:01.308Z"}
+{"level":"info","message":"Database connected successfully","timestamp":"2025-06-16T04:09:05.958Z"}

@@ -36,23 +36,35 @@ function mapApiNewsData(apiData) {
   return apiData.map(item => ({
     NewsId: item.id,
     Title: item.topic || 'Untitled',
-    Category: getCategoryName(item.cate_news_id),
+    Category: item.category_name || getCategoryName(item.cate_news_id),
     Content: item.content || '',
     CreatedAt: item.create_date,
     ModifyDate: item.modify_date,
-    // Fix: Use file_name instead of attachment_id for the attachment filename
-    Attachment: item.file_name || null,
+    
+    // Handle multiple attachments
+    Attachments: item.attachments || [], // เก็บ attachments ทั้งหมดเป็น array
+    
+    // เก็บไฟล์แรกเพื่อ backward compatibility (ถ้ามี)
+    Attachment: (item.attachments && item.attachments.length > 0) ? item.attachments[0].file_name : null,
+    AttachmentPath: (item.attachments && item.attachments.length > 0) ? item.attachments[0].file_path : null,
+    AttachmentId: (item.attachments && item.attachments.length > 0) ? item.attachments[0].attachment_id : null,
+    
     // Fix: Check for pin value of 1 (not boolean)
     isPinned: item.pin === 1,
-    // Fix: Check for hide value of 1 (not boolean)  
+    
+    // Fix: Check for hide value of 1 (not boolean)
     Hidenews: item.hide === 1,
+    
     Status: item.status || 'ACTIVE',
+    
     // Additional fields that might be useful
- 
-    AttachmentPath: item.file_path || null,
-    AttachmentId: item.attachment_id || item.news_attachment_id || null,
     PinOrder: item.pin_order,
-    PinnedAt: item.pinned_at
+    PinnedAt: item.pinned_at,
+    CategoryId: item.cate_news_id,
+    
+    // ข้อมูลสำหรับการจัดการไฟล์หลายไฟล์
+    AttachmentCount: (item.attachments && item.attachments.length) || 0,
+    HasAttachments: (item.attachments && item.attachments.length > 0)
   }));
 }
 
@@ -88,7 +100,197 @@ function New() {
   useEffect(() => {
     fetchNews();
   }, []);
+const handleFileChange = (e) => {
+  const files = Array.from(e.target.files);
+  console.log('Selected files:', files); // Debug log
+  
+  if (files.length > 0) {
+    // สำหรับ form submission
+    setForm(prev => ({
+      ...prev,
+      file_name: files // เก็บไฟล์หลายไฟล์
+    }));
+    
+    // สร้าง preview สำหรับไฟล์ใหม่ที่เลือก
+    const newFilePreviews = files.map((file, index) => ({
+      id: `new_${index}`,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      url: URL.createObjectURL(file), // สร้าง URL สำหรับ preview
+      isNewFile: true // flag เพื่อแยกไฟล์ใหม่กับไฟล์เก่า
+    }));
+    
+    // ถ้ามีไฟล์เก่าอยู่แล้ว ให้รวมกับไฟล์ใหม่
+    setPreview(prevPreview => {
+      if (prevPreview && Array.isArray(prevPreview)) {
+        // มีไฟล์เก่าอยู่แล้ว เพิ่มไฟล์ใหม่เข้าไป
+        return [...prevPreview, ...newFilePreviews];
+      } else if (prevPreview && typeof prevPreview === 'string') {
+        // ไฟล์เก่าเป็น string เดียว แปลงเป็น array แล้วเพิ่มไฟล์ใหม่
+        return [
+          {
+            id: 'existing',
+            name: 'Existing file',
+            url: prevPreview,
+            isNewFile: false
+          },
+          ...newFilePreviews
+        ];
+      } else {
+        // ไม่มีไฟล์เก่า ใช้ไฟล์ใหม่เท่านั้น
+        return newFilePreviews;
+      }
+    });
+  } else {
+    // ไม่มีไฟล์เลือก
+    setForm(prev => ({
+      ...prev,
+      file_name: null
+    }));
+  }
+};
 
+// ฟังก์ชันสำหรับลบไฟล์ออกจาก preview
+const handleRemoveFile = (fileId) => {
+  setPreview(prevPreview => {
+    if (Array.isArray(prevPreview)) {
+      const updatedPreview = prevPreview.filter(file => file.id !== fileId);
+      
+      // ถ้าเป็นไฟล์ใหม่ที่สร้าง URL object ให้ revoke URL
+      const fileToRemove = prevPreview.find(file => file.id === fileId);
+      if (fileToRemove && fileToRemove.isNewFile) {
+        URL.revokeObjectURL(fileToRemove.url);
+      }
+      
+      // สำหรับไฟล์เก่าที่ไม่ใช่ newFile ให้เปลี่ยน url เป็น ''
+      if (fileToRemove && !fileToRemove.isNewFile) {
+        // อัปเดตสถานะไฟล์ที่ถูกลบ - เซ็ต url เป็น empty string
+        const updatedPreviewWithEmptyUrl = updatedPreview.map(file => {
+          if (file.id === fileId) {
+            return { ...file, url: '' };
+          }
+          return file;
+        });
+      }
+      
+      // อัปเดต form.file_name ด้วย (เฉพาะไฟล์ใหม่)
+      const newFiles = updatedPreview
+        .filter(file => file.isNewFile)
+        .map(file => file.originalFile)
+        .filter(Boolean);
+      
+      setForm(prev => ({
+        ...prev,
+        file_name: newFiles.length > 0 ? newFiles : null
+      }));
+      
+      // เก็บข้อมูลไฟล์ที่ถูกลบไว้ใน state แยก (สำหรับส่งไปยัง backend)
+      if (fileToRemove && !fileToRemove.isNewFile) {
+        setForm(prev => ({
+          ...prev,
+          removedFiles: [...(prev.removedFiles || []), fileToRemove.id]
+        }));
+      }
+      
+      return updatedPreview.length > 0 ? updatedPreview : null;
+    }
+    return prevPreview;
+  });
+};
+
+// หรือหากคุณต้องการให้แสดงไฟล์ที่ถูกลบแล้วแต่มี url เป็น '' ในการแสดงผล
+const handleRemoveFileAlternative = (fileId) => {
+  setPreview(prevPreview => {
+    if (Array.isArray(prevPreview)) {
+      // หาไฟล์ที่จะลบ
+      const fileToRemove = prevPreview.find(file => file.id === fileId);
+      
+      if (fileToRemove) {
+        // ถ้าเป็นไฟล์ใหม่ ให้ลบออกจาก preview
+        if (fileToRemove.isNewFile) {
+          URL.revokeObjectURL(fileToRemove.url);
+          const updatedPreview = prevPreview.filter(file => file.id !== fileId);
+          
+          // อัปเดต form.file_name
+          const newFiles = updatedPreview
+            .filter(file => file.isNewFile)
+            .map(file => file.originalFile)
+            .filter(Boolean);
+          
+          setForm(prev => ({
+            ...prev,
+            file_name: newFiles.length > 0 ? newFiles : null
+          }));
+          
+          return updatedPreview.length > 0 ? updatedPreview : null;
+        } else {
+          // ถ้าเป็นไฟล์เก่า ให้เปลี่ยน url เป็น '' และทำเครื่องหมายว่าถูกลบ
+          const updatedPreview = prevPreview.map(file => {
+            if (file.id === fileId) {
+              return { 
+                ...file, 
+                url: '', 
+                isRemoved: true 
+              };
+            }
+            return file;
+          });
+          
+          // เก็บ ID ของไฟล์ที่ถูกลบ
+          setForm(prev => ({
+            ...prev,
+            removedFiles: [...(prev.removedFiles || []), fileId]
+          }));
+          
+          return updatedPreview;
+        }
+      }
+    }
+    return prevPreview;
+  });
+};
+
+// ฟังก์ชันปรับปรุงสำหรับเก็บ original file object
+const handleFileChangeImproved = (e) => {
+  const files = Array.from(e.target.files);
+  console.log('Selected files:', files);
+  
+  if (files.length > 0) {
+    setForm(prev => ({
+      ...prev,
+      file_name: files
+    }));
+    
+    const newFilePreviews = files.map((file, index) => ({
+      id: `new_${Date.now()}_${index}`,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      url: URL.createObjectURL(file),
+      isNewFile: true,
+      originalFile: file // เก็บ file object ไว้ใช้งาน
+    }));
+    
+    setPreview(prevPreview => {
+      if (prevPreview && Array.isArray(prevPreview)) {
+        return [...prevPreview, ...newFilePreviews];
+      } else if (prevPreview && typeof prevPreview === 'string') {
+        return [
+          {
+            id: 'existing',
+            name: 'Existing file',
+            url: prevPreview,
+            isNewFile: false
+          },
+          ...newFilePreviews
+        ];
+      } else {
+        return newFilePreviews;
+      }
+    });
+  }
+};
   // Updated fetchNews function with better error handling
   const fetchNews = async () => {
     try {
@@ -163,23 +365,64 @@ function New() {
     }
   };
 
-  const handleOpenModal = (item = null) => {
-    setEditItem(item);
-    if (item) {
-      setForm({
-        title: item.Title,
-        category: item.Category,
-        content: item.Content,
-        file_name: null
-      });
-      // Updated preview logic
-      setPreview(getAttachmentPath(item));
+const handleOpenModal = (item = null) => {
+  console.log('Opening modal with item:', item); // Debug log
+  setEditItem(item);
+  
+  if (item) {
+    setForm({
+      title: item.topic || item.Title,
+      category: item.cate_news_id || item.Category || item.CategoryId,
+      content: item.content || item.Content,
+      file_name: null
+    });
+    
+    // ตรวจสอบ attachments จากหลายแหล่ง
+    const attachments = item.attachments || item.Attachments || [];
+    console.log('Found attachments:', attachments); // Debug log
+    
+    if (attachments && attachments.length > 0) {
+      // สร้าง preview สำหรับไฟล์หลายไฟล์
+      const attachmentPreviews = attachments.map(attachment => ({
+        id: attachment.attachment_id || attachment.id,
+        name: attachment.file_name || attachment.name,
+        path: attachment.file_path || attachment.path,
+        type: attachment.file_type || attachment.type,
+        url: attachment.file_path 
+          ? `http://localhost:5000${attachment.file_path}`
+          : attachment.url 
+          ? attachment.url
+          : `http://localhost:5000/uploads/${attachment.file_name || attachment.name}`
+      }));
+      
+      console.log('Setting preview to:', attachmentPreviews); // Debug log
+      setPreview(attachmentPreviews);
+    } else if (item.AttachmentPath || item.Attachment) {
+      // Fallback สำหรับระบบเดิม
+      const singleFileUrl = item.AttachmentPath 
+        ? `http://localhost:5000${item.AttachmentPath}`
+        : `http://localhost:5000${item.Attachment}`;
+      
+      console.log('Setting single file preview to:', singleFileUrl); // Debug log
+      setPreview(singleFileUrl);
     } else {
-      setForm({ title: '', category: '', content: '', file_name: null });
+      console.log('No attachments found, setting preview to null'); // Debug log
       setPreview(null);
     }
-    setModalOpen(true);
-  };
+    
+  } else {
+    // สำหรับเพิ่มข่าวใหม่
+    setForm({
+      title: '',
+      category: '',
+      content: '',
+      file_name: null
+    });
+    setPreview(null);
+  }
+  
+  setModalOpen(true);
+};
 
   const handleCloseModal = () => {
     setModalOpen(false);
@@ -238,7 +481,7 @@ function New() {
       formData.append('content', form.content);
       
       if (form.flie_name) {
-        formData.append('flie_name', form.flie_name);
+        formData.append('flie_name', form.attachment);
       }
 
       let response;
@@ -337,15 +580,15 @@ function New() {
   };
 
   // Updated attachment path helper function
-  const getAttachmentPath = (item) => {
-    // Try file_path first, then construct from file_name
-    if (item.AttachmentPath) {
-      return `http://localhost:5000${item.AttachmentPath}`;
-    } else if (item.AttachmentPath) {
-      return `http://localhost:5000${item.Attachment}`;
-    }
-    return null;
-  };
+const getAttachmentPath = (item) => {
+  // Try file_path first, then construct from file_name
+  if (item.AttachmentPath) {
+    return `http://localhost:5000/uploads${item.AttachmentPath}`;
+  } else if (item.Attachment) { // แก้ไข: เปลี่ยนจาก AttachmentPath เป็น Attachment
+    return `http://localhost:5000/uploads${item.Attachment}`; // แก้ไข: เพิ่ม path structure
+  }
+  return null;
+};
 
   // Helper function to check if file is an image
   const isImageFile = (file) => {
@@ -612,81 +855,124 @@ function New() {
         </div>
       </div>
 
-      {/* Edit/Add Modal */}
       {modalOpen && (
-        <div className="modal-overlay">
-          <div className="edit-modal">
-            <div className="edit-modal-header">
-              <h3>{editItem ? 'Edit News' : 'Add News'}</h3>
-              <button className="edit-close-btn" onClick={handleCloseModal}>×</button>
-            </div>
-            <form onSubmit={handleSubmit} className="edit-news-form">
-              <div className="edit-form-group">
-                <label>Title</label>
-                <input 
-                  name="title" 
-                  value={form.title} 
-                  onChange={handleChange} 
-                  required 
-                  placeholder="Enter news title"
-                />
-              </div>
-              <div className="edit-form-group">
-                <label>Category</label>
-                <select
-                  name="category"
-                  value={form.category}
-                  onChange={handleChange}
-                  required
+  <div className="modal-overlay">
+    <div className="edit-modal">
+      <div className="edit-modal-header">
+        <h3>{editItem ? 'Edit News' : 'Add News'}</h3>
+        <button className="edit-close-btn" onClick={handleCloseModal}>×</button>
+      </div>
+      <form onSubmit={handleSubmit} className="edit-news-form">
+        <div className="edit-form-group">
+          <label>Title</label>
+          <input
+            name="title"
+            value={form.title}
+            onChange={handleChange}
+            required
+            placeholder="Enter news title"
+          />
+        </div>
+        <div className="edit-form-group">
+          <label>Category</label>
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            required
+          >
+            <option value="">Select category</option>
+            {categories.map(cat => (
+              <option key={cat.value} value={cat.value}>
+                {cat.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="edit-form-group">
+          <label>Content</label>
+          <textarea
+            name="content"
+            value={form.content}
+            onChange={handleChange}
+            required
+            placeholder="Enter news content"
+            rows="6"
+          />
+        </div>
+     
+
+      <div className="edit-form-group">
+  <label>Attachment</label>
+  
+  <div className="edit-file-preview">
+    {preview ? (
+      Array.isArray(preview) ? (
+        <div className="multiple-attachments">
+          <div className="attachment-header">
+            <FiFile />
+            <span>Attachments ({preview.length} files)</span>
+          </div>
+          <div className="attachment-list">
+            {preview.map((file, index) => (
+              <div key={file.id || index} className="attachment-item-container">
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="attachment-item"
                 >
-                  <option value="">Select category</option>
-                  {categories.map(cat => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="edit-form-group">
-                <label>Content</label>
-                <textarea 
-                  name="content" 
-                  value={form.content} 
-                  onChange={handleChange} 
-                  required 
-                  placeholder="Enter news content"
-                  rows="6"
-                />
-              </div>
-              <div className="edit-form-group">
-                <label>Attachment</label>
-                
-          <div className="edit-file-preview">
-  {preview ? (
-    <a href={preview} target="_blank" rel="noopener noreferrer" className="has-preview">
-      <FiFile />
-      <span>Current attachment - Click to preview</span>
-    </a>
-  ) : (
-    <div className="no-preview">
-      <FiFile />
-      <span>No attachment available</span>
-    </div>
-  )}
-</div>
-              </div>
-              <div className="edit-modal-actions">
-                <button type="button" onClick={handleCloseModal} className="edit-modal-btn edit-btn-cancel">
-                  Cancel
-                </button> 
-                <button type="submit" className="edit-modal-btn edit-btn-save">
-                  {editItem ? 'Update' : 'Save'}
+                  <FiFile />
+                  <span>{file.name}</span>
+                  <small>({file.type})</small>
+                  {file.isNewFile && <span className="new-file-badge">New</span>}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveFile(file.id)}
+                  className="remove-file-btn"
+                  title="Remove file"
+                >
+                  ×
                 </button>
               </div>
-            </form>
+            ))}
           </div>
         </div>
-      )}
+      ) : (
+        <div className="single-attachment">
+          <a href={preview} target="_blank" rel="noopener noreferrer" className="has-preview">
+            <FiFile />
+            <span>Current attachment - Click to preview</span>
+          </a>
+        </div>
+      )
+    ) : (
+      <div className="no-preview">
+        <FiFile />
+        <span>No attachment available</span>
+      </div>
+    )}
+  </div>
+
+
+  <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
+    You can select multiple files. Supported formats: Images, PDF, Word, Excel, Text
+  </small>
+</div>
+        
+        <div className="edit-form-actions">
+          <button type="button" onClick={handleCloseModal} className="edit-cancel-btn">
+            Cancel
+          </button>
+          <button type="submit" className="edit-submit-btn">
+            {editItem ? 'Update' : 'Create'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
@@ -767,60 +1053,192 @@ function New() {
                   </div>
                 
 <div className="attachment-preview">
-  <button
-    onClick={async () => {
-      try {
-        const attachmentPath = getAttachmentPath(selectedItem);
-        if (!attachmentPath) {
-          console.error('No attachment path found');
-          return;
-        }
+  {selectedItem.HasAttachments ? (
+    selectedItem.Attachments && selectedItem.Attachments.length > 0 ? (
+      // หลายไฟล์
+      <div className="multiple-attachments">
+        <div className="attachment-header">
+          <span>Attachments ({selectedItem.Attachments.length} files)</span>
+        </div>
+        {selectedItem.Attachments.map((attachment, index) => (
+          <button
+            key={attachment.attachment_id || index}
+            onClick={async () => {
+              try {
+                const attachmentPath = `http://localhost:5000${attachment.file_path}`;
+                if (!attachmentPath) {
+                  console.error('No attachment path found');
+                  return;
+                }
 
+                const response = await fetch(attachmentPath, {
+                  method: 'GET',
+                  // เพิ่ม headers ถ้าจำเป็น
+                  // headers: {
+                  //   'Authorization': 'Bearer ' + token,
+                  // }
+                });
 
-        const response = await fetch(attachmentPath, {
-          method: 'GET',
-          // เพิ่ม headers ถ้าจำเป็น
-          // headers: {
-          //   'Authorization': 'Bearer ' + token,
-          // }
-        });
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = attachment.file_name || `download_${index}`;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
 
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = selectedItem.Attachment || 'download';
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+                console.log('Download completed:', attachment.file_name);
+              } catch (error) {
+                console.error('Download failed:', error);
+                alert(`ไม่สามารถดาวน์โหลดไฟล์ ${attachment.file_name} ได้`);
+              }
+            }}
+            className="attachment-link"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              padding: '8px 12px',
+              margin: '4px 0',
+              textDecoration: 'underline',
+              color: '#007bff',
+              borderRadius: '4px',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            <span className="filename">
+              {attachment.file_name}
+              <small style={{ color: '#6c757d', marginLeft: '8px' }}>
+                ({attachment.file_type})
+              </small>
+            </span>
+            <FiDownload style={{ marginLeft: '8px', flexShrink: 0 }} />
+          </button>
+        ))}
         
-        console.log('Download completed'); // debug
-      } catch (error) {
-        console.error('Download failed:', error);
-        alert('ไม่มีรูปอยู่ ในฐานข้อมูล');
-      }
-    }}
-    className="attachment-link"
-    style={{ 
-      background: 'none', 
-      border: 'none', 
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      padding: '8px',
-      textDecoration: 'underline',
-      color: '#007bff'
-    }}
-  >
-    <span className="filename">{selectedItem.Attachment}</span>
-    <FiDownload style={{ marginLeft: '8px' }} />
-  </button>
+        {/* ปุ่มดาวน์โหลดทั้งหมด (ถ้าต้องการ) */}
+        {selectedItem.Attachments.length > 1 && (
+          <button
+            onClick={async () => {
+              for (let i = 0; i < selectedItem.Attachments.length; i++) {
+                const attachment = selectedItem.Attachments[i];
+                try {
+                  const attachmentPath = `http://localhost:5000${attachment.file_path}`;
+                  const response = await fetch(attachmentPath);
+                  
+                  if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = attachment.file_name || `download_${i}`;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                    
+                    // รอสักครู่ระหว่างการดาวน์โหลด
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                  }
+                } catch (error) {
+                  console.error(`Failed to download ${attachment.file_name}:`, error);
+                }
+              }
+            }}
+            className="download-all-btn"
+            style={{
+              background: '#28a745',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              padding: '10px',
+              margin: '8px 0 0 0',
+              borderRadius: '4px',
+              fontWeight: 'bold'
+            }}
+          >
+            <FiDownload style={{ marginRight: '8px' }} />
+            Download All Files
+          </button>
+        )}
+      </div>
+    ) : (
+      // ไฟล์เดียว (backward compatibility)
+      selectedItem.Attachment && (
+        <button
+          onClick={async () => {
+            try {
+              const attachmentPath = getAttachmentPath(selectedItem);
+              if (!attachmentPath) {
+                console.error('No attachment path found');
+                return;
+              }
+
+              const response = await fetch(attachmentPath, {
+                method: 'GET',
+              });
+
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+
+              const blob = await response.blob();
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = selectedItem.Attachment || 'download';
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
+
+              console.log('Download completed');
+            } catch (error) {
+              console.error('Download failed:', error);
+              alert('ไม่มีรูปอยู่ ในฐานข้อมูล');
+            }
+          }}
+          className="attachment-link"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px',
+            textDecoration: 'underline',
+            color: '#007bff'
+          }}
+        >
+          <span className="filename">{selectedItem.Attachment}</span>
+          <FiDownload style={{ marginLeft: '8px' }} />
+        </button>
+      )
+    )
+  ) : (
+    <div style={{ padding: '8px', color: '#6c757d', fontStyle: 'italic' }}>
+      No attachments available
+    </div>
+  )}
 </div>
                 </div>
               )}

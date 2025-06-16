@@ -305,15 +305,15 @@ const formatDateForDisplay = (dateString) => {
   criminalDetails: emp.criminal_record_detail || '',
 
   // ✅ ผู้ติดต่อฉุกเฉิน
-  emergencyContactName1: emp.contact_person1?.name || '',
-  emergencyContactRelation1: emp.contact_person1?.relationship || '',
-  emergencyContactPhone1: emp.contact_person1?.mobile || '',
-  emergencyContactAddress1: emp.contact_person1?.address || '',
+  emergencyContactName1: emp.contact_person1.name || '',
+  emergencyContactRelation1: emp.contact_person1.relationship || '',
+  emergencyContactPhone1: emp.contact_person1.mobile || '',
+  emergencyContactAddress1: emp.contact_person1.address || '',
 
-  emergencyContactName2: emp.contact_person2?.name || '',
-  emergencyContactRelation2: emp.contact_person2?.relationship || '',
-  emergencyContactPhone2: emp.contact_person2?.mobile || '',
-  emergencyContactAddress2: emp.contact_person2?.address || '',
+  emergencyContactName2: emp.contact_person2.name || '',
+  emergencyContactRelation2: emp.contact_person2.relationship || '',
+  emergencyContactPhone2: emp.contact_person2.mobile || '',
+  emergencyContactAddress2: emp.contact_person2.address || '',
 
   // ✅ ความสามารถในการย้ายภูมิลำเนา
   canRelocate: emp.upcountry_areas || '',
@@ -506,13 +506,17 @@ const updatePayload = {
   
   // ✅ ผู้ติดต่อฉุกเฉิน
  
-  contact_person2: {
+  contact_person1_id: editData.contact_person1_id, // เพิ่ม ID สำหรับการอัปเดต
+    contact_person1_name: editData.emergencyContactName1,
+    contact_person1_relationship: editData.emergencyContactRelation1,
+    contact_person1_mobile: editData.emergencyContactPhone1,
+    contact_person1_address: editData.emergencyContactAddress1,
     contact_person2_id: editData.contact_person2_id, // เพิ่ม ID สำหรับการอัปเดต
-    name: editData.emergencyContactName2,
-    relationship: editData.emergencyContactRelation2,
-    mobile: editData.emergencyContactPhone2,
-    address: editData.emergencyContactAddress2
-  },
+    contact_person2_name: editData.emergencyContactName2,
+    contact_person2_relationship: editData.emergencyContactRelation2,
+    contact_person2_mobile: editData.emergencyContactPhone2,
+    contact_person2_address: editData.emergencyContactAddress2
+,
   
   // ✅ ความสามารถในการย้ายภูมิลำเนา
   upcountry_areas: editData.canRelocate,
