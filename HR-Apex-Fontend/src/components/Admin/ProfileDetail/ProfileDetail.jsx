@@ -987,462 +987,297 @@ const calculateBirthDate = (age) => {
     </div>
   );
 
-  const renderDocuments = () => {
-    return (
-      <div className="documents-container">
-        <div className="documents-header">
-          <button className="add-file-btn" onClick={() => setIsUploadModalOpen(true)}>
-            <FiUpload />
-            ADD FILE
-          </button>
-        </div>
-        {/* Document list section */}
-        <div className="document-list">
-          <div className="document-row">
-            <div className="document-item">
-              <span>Job application form.pdf</span>
-              <div className="document-actions">
-                <button className="button-view">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-view__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span>View</span>
-                </button>
-                <button className="button-download">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-download__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
-                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
-                    <path d="M7 11l5 5l5 -5"></path>
-                    <path d="M12 4l0 12"></path>
-                  </svg>
-                  <span>Download</span>
-                </button>
-                <button className="button-delete">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-delete__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
-                    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                  </svg>
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="document-row">
-            <div className="document-item">
-              <span>Employment contract.jpg</span>
-              <div className="document-actions">
-                <button className="button-view">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-view__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span>View</span>
-                </button>
-                <button className="button-download">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-download__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
-                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
-                    <path d="M7 11l5 5l5 -5"></path>
-                    <path d="M12 4l0 12"></path>
-                  </svg>
-                  <span>Download</span>
-                </button>
-                <button className="button-delete">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-delete__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
-                    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                  </svg>
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="document-row">
-            <div className="document-item">
-              <span>Certificate.pdf</span>
-              <div className="document-actions">
-                <button className="button-view">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-view__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span>View</span>
-                </button>
-                <button className="button-download">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-download__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
-                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
-                    <path d="M7 11l5 5l5 -5"></path>
-                    <path d="M12 4l0 12"></path>
-                  </svg>
-                  <span>Download</span>
-                </button>
-                <button className="button-delete">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-delete__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
-                    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                  </svg>
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="document-row">
-            <div className="document-item">
-              <span>Copy of ID Card.pdf</span>
-              <div className="document-actions">
-                <button className="button-view">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-view__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span>View</span>
-                </button>
-                <button className="button-download">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-download__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
-                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
-                    <path d="M7 11l5 5l5 -5"></path>
-                    <path d="M12 4l0 12"></path>
-                  </svg>
-                  <span>Download</span>
-                </button>
-                <button className="button-delete">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-delete__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
-                    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                  </svg>
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="document-row">
-            <div className="document-item">
-              <span>House Registration.png</span>
-              <div className="document-actions">
-                <button className="button-view">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-view__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span>View</span>
-                </button>
-                <button className="button-download">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-download__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
-                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
-                    <path d="M7 11l5 5l5 -5"></path>
-                    <path d="M12 4l0 12"></path>
-                  </svg>
-                  <span>Download</span>
-                </button>
-                <button className="button-delete">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-delete__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
-                    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                  </svg>
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="document-row">
-            <div className="document-item">
-              <span>Bank Account Book.pdf</span>
-              <div className="document-actions">
-                <button className="button-view">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-view__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span>View</span>
-                </button>
-                <button className="button-download">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-download__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
-                    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
-                    <path d="M7 11l5 5l5 -5"></path>
-                    <path d="M12 4l0 12"></path>
-                  </svg>
-                  <span>Download</span>
-                </button>
-                <button className="button-delete">
-                  <svg
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    viewBox="0 0 24 24"
-                    height="24"
-                    width="24"
-                    className="button-delete__icon"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path d="M3 6h18"></path>
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
-                    <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
-                    <path d="M10 11v6"></path>
-                    <path d="M14 11v6"></path>
-                  </svg>
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* File Upload Modal */}
-        {isUploadModalOpen && (
-          <div className="modal-overlay">
-            <div className="upload-modal">
-              <div className="upload-modal-header">
-                <h3>Upload Document</h3>
-                <button className="close-btn" onClick={() => setIsUploadModalOpen(false)}>
-                  <FiX />
-                </button>
-              </div>
-              <div className="upload-modal-content">
-                <div className="upload-area">
-                  <input
-                    type="file"
-                    id="file-upload"
-                    onChange={handleFileUpload}
-                    className="file-input"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  />
-                  <label htmlFor="file-upload" className="upload-label">
-                    <FiUpload className="upload-icon" />
-                    <p>Drag & drop your file here or <span>browse</span></p>
-                    <p className="upload-hint">Supported formats: PDF, DOC, DOCX, JPG, PNG</p>
-                  </label>
+
+// Alternative approach using a separate component for each document item
+const renderDocuments = () => { // Remove emp parameter
+  // Handle button actions
+  const handleView = (attachment) => {
+    console.log('Viewing:', attachment.file_name);
+    if (attachment.file_path) {
+      window.open(attachment.file_path, '_blank');
+    }
+  };
+
+  const handleDownload = (attachment) => {
+    console.log('Downloading:', attachment.file_name);
+    if (attachment.file_path) {
+      const link = document.createElement('a');
+      link.href = attachment.file_path;
+      link.download = attachment.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleDelete = (attachment) => {
+    console.log('Deleting:', attachment.file_name);
+    if (window.confirm(`Are you sure you want to delete ${attachment.file_name}?`)) {
+      // Call your delete API here
+      // deleteAttachment(attachment.attachment_id);
+    }
+  };
+
+  // Use employeeData.attachments directly instead of emp.attachments
+  const attachments = employeeData?.attachments || [];
+
+  console.log("Mapped attachments:", attachments);
+
+  return (
+    <div className="documents-container">
+      <div className="documents-header">
+        <button className="add-file-btn" onClick={() => setIsUploadModalOpen(true)}>
+          <FiUpload />
+          ADD FILE
+        </button>
+      </div>
+      
+      {/* Document list section */}
+      <div className="document-list">
+        {attachments.length === 0 ? (
+          <div className="no-documents">
+            <p>No documents uploaded yet.</p>
+          </div>
+        ) : (
+          attachments.map((attachment) => (
+            <div key={attachment.attachment_id} className="document-row">
+              <div className="document-item">
+                <span>{attachment.file_name}</span>
+                <div className="document-actions">
+                  <button 
+                    className="button-view"
+                    onClick={() => handleView(attachment)}
+                    title="View document"
+                  >
+                    <svg
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      viewBox="0 0 24 24"
+                      height="24"
+                      width="24"
+                      className="button-view__icon"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>View</span>
+                  </button>
+                  
+                  <button 
+                    className="button-download"
+                    onClick={() => handleDownload(attachment)}
+                    title="Download document"
+                  >
+                    <svg
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      viewBox="0 0 24 24"
+                      height="24"
+                      width="24"
+                      className="button-download__icon"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
+                      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
+                      <path d="M7 11l5 5l5 -5"></path>
+                      <path d="M12 4l0 12"></path>
+                    </svg>
+                    <span>Download</span>
+                  </button>
+                  
+                  <button 
+                    className="button-delete"
+                    onClick={() => handleDelete(attachment)}
+                    title="Delete document"
+                  >
+                    <svg
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      viewBox="0 0 24 24"
+                      height="24"
+                      width="24"
+                      className="button-delete__icon"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M3 6h18"></path>
+                      <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
+                      <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                      <path d="M10 11v6"></path>
+                      <path d="M14 11v6"></path>
+                    </svg>
+                    <span>Delete</span>
+                  </button>
                 </div>
-                {uploadFile && (
-                  <div className="upload-progress">
-                    <div className="file-info">
-                      <FiUpload />
-                      <span>{uploadFile.name}</span>
-                    </div>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress" 
-                        style={{ width: `${uploadProgress}%` }}
-                      ></div>
-                    </div>
-                    <span className="progress-text">{uploadProgress}%</span>
-                  </div>
-                )}
               </div>
             </div>
-          </div>
+          ))
         )}
       </div>
-    );
+    </div>
+  );
+};
+
+// Fixed DocumentItem component - removed the stray console.log
+const DocumentItem = ({ attachment, onView, onDownload, onDelete }) => {
+  return (
+    <div className="document-row">
+      <div className="document-item">
+        <span>{attachment.file_name}</span>
+        <div className="document-actions">
+          <button 
+            className="button-view"
+            onClick={() => onView(attachment)}
+            title="View document"
+          >
+            <svg
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              viewBox="0 0 24 24"
+              height="24"
+              width="24"
+              className="button-view__icon"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <span>View</span>
+          </button>
+          
+          <button 
+            className="button-download"
+            onClick={() => onDownload(attachment)}
+            title="Download document"
+          >
+            <svg
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              viewBox="0 0 24 24"
+              height="24"
+              width="24"
+              className="button-download__icon"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path fill="none" d="M0 0h24v24H0z" stroke="none"></path>
+              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
+              <path d="M7 11l5 5l5 -5"></path>
+              <path d="M12 4l0 12"></path>
+            </svg>
+            <span>Download</span>
+          </button>
+          
+          <button 
+            className="button-delete"
+            onClick={() => onDelete(attachment)}
+            title="Delete document"
+          >
+            <svg
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              viewBox="0 0 24 24"
+              height="24"
+              width="24"
+              className="button-delete__icon"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"></path>
+              <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+              <path d="M10 11v6"></path>
+              <path d="M14 11v6"></path>
+            </svg>
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// Usage with the alternative approach
+const renderDocumentsAlternative = (emp) => {
+  const attachments = emp.attachments?.map(attachment => ({
+    attachment_id: attachment.attachment_id,
+    file_name: attachment.file_name,
+    file_path: attachment.file_path ? `http://localhost:5000${attachment.file_path}` : "",
+    create_date: formatDateForDisplay(attachment.create_date),
+    modify_date: formatDateForDisplay(attachment.modify_date)
+  })) || [];
+
+  const handleView = (attachment) => {
+    console.log('Viewing:', attachment.file_name);
+    if (attachment.file_path) {
+      window.open(attachment.file_path, '_blank');
+    }
   };
+
+  const handleDownload = (attachment) => {
+    console.log('Downloading:', attachment.file_name);
+    if (attachment.file_path) {
+      const link = document.createElement('a');
+      link.href = attachment.file_path;
+      link.download = attachment.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleDelete = (attachment) => {
+    console.log('Deleting:', attachment.file_name);
+    if (window.confirm(`Are you sure you want to delete ${attachment.file_name}?`)) {
+      // Call your delete API here
+    }
+  };
+
+  return (
+    <div className="documents-container">
+      <div className="documents-header">
+        <button className="add-file-btn" onClick={() => setIsUploadModalOpen(true)}>
+          <FiUpload />
+          ADD FILE
+        </button>
+      </div>
+      
+      <div className="document-list">
+        {attachments.length === 0 ? (
+          <div className="no-documents">
+            <p>No documents uploaded yet.</p>
+          </div>
+        ) : (
+          attachments.map((attachment) => (
+            <DocumentItem
+              key={attachment.attachment_id}
+              attachment={attachment}
+              onView={handleView}
+              onDownload={handleDownload}
+              onDelete={handleDelete}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
 
   const renderBankInfo = () => {
     return (
@@ -2580,7 +2415,7 @@ const calculateBirthDate = (age) => {
         return (
           <div className="info-section">
             <div className="section-title">Documents</div>
-            {renderDocuments()}
+         {renderDocuments(employeeData)} 
           </div>
         );
       case 'professional':
